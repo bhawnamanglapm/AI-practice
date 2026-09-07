@@ -1,0 +1,9 @@
+{"wireMagic":"pb3","events":[
+ {"tStartMs":0,"dDurationMs":1000,"id":1,"wpWinPosId":1},
+ {"tStartMs":40,"dDurationMs":2960,"segs":[{"utf8":"Welcome to "},{"utf8":"AI practice"}]},
+ {"tStartMs":3000,"dDurationMs":2500,"segs":[{"utf8":"it&amp;#39;s a\nshort introduction"}]},
+ {"tStartMs":5500,"dDurationMs":1500,"segs":[{"utf8":"\n"}]},
+ {"tStartMs":5600,"dDurationMs":2400,"aAppend":1,"segs":[{"utf8":"it's a short introduction"}]},
+ {"tStartMs":8000,"segs":[{"utf8":"to what models can do"}]},
+ {"tStartMs":11500,"dDurationMs":3000,"segs":[{"utf8":"thanks for watching"}]}
+]}

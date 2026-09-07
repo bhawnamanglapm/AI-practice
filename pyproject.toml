@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "youtube-transcript-extractor"
+version = "1.0.0"
+description = "Extract the content and transcript of YouTube videos using only the standard library."
+readme = "youtube_transcript_extractor/README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+keywords = ["youtube", "transcript", "captions", "subtitles", "srt", "vtt"]
+classifiers = [
+  "Environment :: Console",
+  "Programming Language :: Python :: 3",
+  "Topic :: Multimedia :: Video",
+  "Topic :: Text Processing",
+]
+dependencies = []
+
+[project.scripts]
+youtube-transcript-extractor = "youtube_transcript_extractor.cli:main"
+yt-transcript = "youtube_transcript_extractor.cli:main"
+
+[tool.setuptools]
+packages = ["youtube_transcript_extractor"]

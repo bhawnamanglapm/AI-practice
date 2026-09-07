@@ -1,0 +1,52 @@
+{
+  "playabilityStatus": {"status": "OK"},
+  "videoDetails": {
+    "videoId": "dQw4w9WgXcQ",
+    "title": "Learning AI: a short introduction",
+    "lengthSeconds": "213",
+    "channelId": "UC38IQsAvIsxxjztdMZQtwHA",
+    "shortDescription": "A practice video about AI.\nChapters in the comments.",
+    "viewCount": "1465238",
+    "author": "AI Practice",
+    "isLiveContent": false,
+    "keywords": ["ai", "machine learning"]
+  },
+  "microformat": {
+    "playerMicroformatRenderer": {
+      "publishDate": "2024-03-05T00:00:00-08:00",
+      "category": "Education",
+      "ownerChannelName": "AI Practice"
+    }
+  },
+  "captions": {
+    "playerCaptionsTracklistRenderer": {
+      "captionTracks": [
+        {
+          "baseUrl": "https://www.youtube.com/api/timedtext?v=dQw4w9WgXcQ&lang=en",
+          "name": {"simpleText": "English"},
+          "languageCode": "en",
+          "isTranslatable": true
+        },
+        {
+          "baseUrl": "https://www.youtube.com/api/timedtext?v=dQw4w9WgXcQ&lang=en&kind=asr",
+          "name": {"runs": [{"text": "English (auto-generated)"}]},
+          "languageCode": "en",
+          "kind": "asr",
+          "isTranslatable": true
+        },
+        {
+          "baseUrl": "https://www.youtube.com/api/timedtext?v=dQw4w9WgXcQ&lang=hi",
+          "name": {"simpleText": "Hindi"},
+          "languageCode": "hi",
+          "isTranslatable": true
+        },
+        {
+          "baseUrl": "https://www.youtube.com/api/timedtext?v=dQw4w9WgXcQ&lang=pt-BR",
+          "name": {"simpleText": "Portuguese (Brazil)"},
+          "languageCode": "pt-BR",
+          "isTranslatable": false
+        }
+      ]
+    }
+  }
+}
