@@ -1,8 +1,8 @@
 {
   "schema": "ledgerlens.bsa.v1",
-  "generated_at": "2026-10-01T20:31:44.963Z",
+  "generated_at": "2026-10-02T07:56:52.453Z",
   "run": {
-    "id": 4,
+    "id": 1,
     "source": "03b_scanned_statement.pdf",
     "pages": 2,
     "batches": [
@@ -39,9 +39,9 @@
   "data_validation": {
     "summary": {
       "total": 22,
-      "passed": 20,
+      "passed": 18,
       "warnings": 1,
-      "failed": 0,
+      "failed": 2,
       "not_applicable": 1
     },
     "checks": [
@@ -166,8 +166,8 @@
         "id": 14,
         "group": "Integrity",
         "check": "Running balance arithmetic (every row)",
-        "status": "PASS",
-        "result": "All 32 rows reconcile",
+        "status": "FAILED",
+        "result": "1 row(s) where previous balance ± amount ≠ printed balance",
         "rule": "Previous balance ± amount must equal the printed balance on every row.",
         "on_fail": "FAILED; decision forced to REFER (possible tampering)."
       },
@@ -175,8 +175,8 @@
         "id": 15,
         "group": "Integrity",
         "check": "Opening + transactions = closing balance",
-        "status": "PASS",
-        "result": "Reconciles for every account with an opening balance",
+        "status": "FAILED",
+        "result": "50200011223344: opening 58,420.00 + net 3,571.40 = 61,991.40, statement shows 62,091.40",
         "rule": "Per account, opening balance plus all movements must equal the closing balance.",
         "on_fail": "FAILED; points to deleted rows or missing pages."
       },
@@ -221,9 +221,9 @@
         "group": "Completeness",
         "check": "Enough history to score",
         "status": "WARNING",
-        "result": "1 month(s), 32 transactions — at least 3 months recommended",
-        "rule": "At least 3 months and 20 transactions.",
-        "on_fail": "Warning: score is less reliable."
+        "result": "1 month(s), 32 transactions — under 3 months, decision forced to REFER",
+        "rule": "At least 3 months (75+ days) and 20 transactions.",
+        "on_fail": "Under 3 months: decision forced to REFER. Under 20 transactions: warning."
       },
       {
         "id": 21,
@@ -252,7 +252,7 @@
       "value_date": "2025-01-01",
       "account_number": "50200011223344",
       "month": "2025-01",
-      "narration": "NEFT CR-HDFC0000240-BRIGHTWAVE SOLUTIONS PVT LTD-SALARY JAN 2025:N012500113",
+      "narration": "NEFT CR-HDFC0000240-BRIGHTWAVE SOLUTIONS PVT LTD-SALARY JAN 2025-N012500113",
       "debit": null,
       "credit": 96500,
       "balance": 154920,
@@ -289,17 +289,17 @@
       "value_date": "2025-01-02",
       "account_number": "50200011223344",
       "month": "2025-01",
-      "narration": "UPI-RAJIV MALHOTRA-rajiv.m@okhdicbank-HDFC0001234-501234567890-RENT JAN",
+      "narration": "UPI-RAJIV MALHOTRA rajiv.m@okhdfcbank-HDFC0001234-501234567890-RENT JAN",
       "debit": 22000,
       "credit": null,
       "balance": 132920,
       "currency": "INR",
-      "counterparty": "RAJIV MALHOTRA",
+      "counterparty": "RAJIV MALHOTRA rajiv.m@okhdfcbank",
       "counterparty_confidence": 0.94,
       "counterparty_format": "UPI · HDFC style",
       "channel": "UPI",
       "attributes": {
-        "vpa": "rajiv.m@okhdicbank",
+        "vpa": "rajiv.m@okhdfcbank",
         "ifsc": "HDFC0001234",
         "cpty_bank": "HDFC Bank",
         "rrn": "501234567890"
@@ -309,7 +309,7 @@
       "category_group": "essential",
       "essential": "essential",
       "fixed_or_variable": "fixed",
-      "classification_confidence": 0.82,
+      "classification_confidence": 0.9,
       "method": "RULE",
       "method_reason": "Narration keyword \"RENT\"",
       "review": {
@@ -360,7 +360,7 @@
       "value_date": "2025-01-04",
       "account_number": "50200011223344",
       "month": "2025-01",
-      "narration": "UPI-BLINKIT-blinkit@hdicbank-HDFC0000001-501234567891-UP!",
+      "narration": "UPI-BLINKIT-blinkit@hdfcbank-HDFC0000001-501234567891-UPI",
       "debit": 1245.5,
       "credit": null,
       "balance": 119824.5,
@@ -370,7 +370,7 @@
       "counterparty_format": "UPI · HDFC style",
       "channel": "UPI",
       "attributes": {
-        "vpa": "blinkit@hdicbank",
+        "vpa": "blinkit@hdfcbank",
         "ifsc": "HDFC0000001",
         "cpty_bank": "HDFC Bank",
         "rrn": "501234567891"
@@ -398,14 +398,14 @@
       "value_date": "2025-01-05",
       "account_number": "50200011223344",
       "month": "2025-01",
-      "narration": "POS 416021XXXXXX4521 DMART AVENUE SUPERMARTS",
+      "narration": "POS 416021 XXXXXX4521 DMART AVENUE SUPERMARTS",
       "debit": 3420,
       "credit": null,
       "balance": 116404.5,
       "currency": "INR",
       "counterparty": "DMART",
       "counterparty_confidence": 0.9,
-      "counterparty_format": "Card · HDFC POS · merchant alias",
+      "counterparty_format": "Guess from words · merchant alias",
       "channel": "CARD",
       "attributes": {
         "printed_as": "DMART AVENUE SUPERMARTS"
@@ -433,18 +433,16 @@
       "value_date": "2025-01-05",
       "account_number": "50200011223344",
       "month": "2025-01",
-      "narration": "BIL/ONL/000412345/BESCOMAAN2S",
+      "narration": "BIL/ONL/000412345/BESCOM/JAN25",
       "debit": 1860,
       "credit": null,
       "balance": 114544.5,
       "currency": "INR",
       "counterparty": "BESCOM",
-      "counterparty_confidence": 0.9,
-      "counterparty_format": "Bill pay · ICICI BIL · merchant alias",
+      "counterparty_confidence": 0.88,
+      "counterparty_format": "Bill pay · ICICI BIL",
       "channel": "BBPS",
-      "attributes": {
-        "printed_as": "BESCOMAAN2S"
-      },
+      "attributes": {},
       "level1": "DEBIT",
       "level2": "UTILITY",
       "category_group": "essential",
@@ -468,7 +466,7 @@
       "value_date": "2025-01-06",
       "account_number": "50200011223344",
       "month": "2025-01",
-      "narration": "UPI-SWIGGY-swiggy@icici-ICICODC0099-501234567892-UP!",
+      "narration": "UPI-SWIGGY-swiggy@icici-ICICODC0099-501234567892-UP|",
       "debit": 486,
       "credit": null,
       "balance": 114058.5,
@@ -504,7 +502,7 @@
       "value_date": "2025-01-07",
       "account_number": "50200011223344",
       "month": "2025-01",
-      "narration": "NWD:-416021XXXXXX4521-51AN0123-BENGALURU",
+      "narration": "NWD-416021XXXXXX4521-S1AN0123-BENGALURU",
       "debit": 3000,
       "credit": null,
       "balance": 111058.5,
@@ -515,20 +513,18 @@
       "channel": "ATM",
       "attributes": {},
       "level1": "DEBIT",
-      "level2": "OTHER_DEBIT",
+      "level2": "CASH_WITHDRAWAL",
       "category_group": "discretionary",
       "essential": "discretionary",
       "fixed_or_variable": "variable",
-      "classification_confidence": 0.35,
-      "method": "LLM",
-      "method_reason": "No confident category",
+      "classification_confidence": 0.9,
+      "method": "RULE",
+      "method_reason": "Narration keyword \"NWD-\"",
       "review": {
         "flagged": false,
-        "reasons": [
-          "Low classification confidence (35%)"
-        ],
-        "impact": "LOW",
-        "auto_accepted_low_impact": true
+        "reasons": [],
+        "impact": null,
+        "auto_accepted_low_impact": false
       },
       "source_page": 1,
       "batch": 1
@@ -539,7 +535,7 @@
       "value_date": "2025-01-08",
       "account_number": "50200011223344",
       "month": "2025-01",
-      "narration": "TO TRANSFER-UPI/DR/501234567893/MEERA IYER/SBIN/meera@oksbi/UPI--",
+      "narration": "TO TRANSFER-UPI/DR/501234567893/MEERA IYER/SBIN/meera@oksbi/UP!--",
       "debit": 1500,
       "credit": null,
       "balance": 109558.5,
@@ -575,16 +571,17 @@
       "value_date": "2025-01-09",
       "account_number": "50200011223344",
       "month": "2025-01",
-      "narration": "UPUP2M/501234567894/AIRTEL PAYMENTS/Recharge/AXIS",
+      "narration": "UPI/P2M/501234567894/AIRTEL PAYMENTS/Recharge/AXIS",
       "debit": 599,
       "credit": null,
       "balance": 108959.5,
       "currency": "INR",
       "counterparty": "AIRTEL",
-      "counterparty_confidence": 0.9,
-      "counterparty_format": "Guess from words · merchant alias",
-      "channel": "OTHER",
+      "counterparty_confidence": 0.93,
+      "counterparty_format": "UPI · Axis style · merchant alias",
+      "channel": "UPI",
       "attributes": {
+        "rrn": "501234567894",
         "printed_as": "AIRTEL PAYMENTS"
       },
       "level1": "DEBIT",
@@ -864,15 +861,15 @@
       "value_date": "2025-01-17",
       "account_number": "50200011223344",
       "month": "2025-01",
-      "narration": "UPIREFUND/AMAZON PAY INDIA/Order 405-112 return",
+      "narration": "UPI/REFUND/AMAZON PAY INDIA/Order 405-112 return",
       "debit": null,
       "credit": 899,
       "balance": 79275.5,
       "currency": "INR",
       "counterparty": "AMAZON",
-      "counterparty_confidence": 0.9,
-      "counterparty_format": "Guess from words · merchant alias",
-      "channel": "OTHER",
+      "counterparty_confidence": 0.95,
+      "counterparty_format": "UPI · slash · merchant alias",
+      "channel": "UPI",
       "attributes": {
         "printed_as": "AMAZON PAY INDIA"
       },
@@ -934,7 +931,7 @@
       "value_date": "2025-01-19",
       "account_number": "50200011223344",
       "month": "2025-01",
-      "narration": "UPI-APOLLO PHARMACY -apollo@icici-ICIC0000003-501234567899-MEDICINE",
+      "narration": "UPI-APOLLO PHARMACY-apollo@icici-ICIC0000003-501234567899-MEDICINE",
       "debit": 735,
       "credit": null,
       "balance": 76040.5,
@@ -1114,8 +1111,8 @@
       "value_date": "2025-01-24",
       "account_number": "50200011223344",
       "month": "2025-01",
-      "narration": "UPI-BLINKIT-blinkit@hdfcbank-HDFC0000001-501234567903-UPI",
-      "debit": 1532.4,
+      "narration": "UPI-BLINKIT-blinkit@hdfcbank-HDFC0000001-501234567903-UPI|",
+      "debit": 1632.4,
       "credit": null,
       "balance": 67539.1,
       "currency": "INR",
@@ -1187,7 +1184,7 @@
       "value_date": "2025-01-26",
       "account_number": "50200011223344",
       "month": "2025-01",
-      "narration": "UPI-ZOMATO-zomato@kotak-KKBK0000005-501234567904-UPI",
+      "narration": "UPI-ZOMATO-zomato@kotak-KKBK0000005-501234567904-UP|",
       "debit": 612,
       "credit": null,
       "balance": 52607.1,
@@ -1278,8 +1275,8 @@
       "essential": "discretionary",
       "fixed_or_variable": "variable",
       "classification_confidence": 0.35,
-      "method": "LLM",
-      "method_reason": "No confident category",
+      "method": "RULE",
+      "method_reason": "No rule matched",
       "review": {
         "flagged": false,
         "reasons": [
@@ -1403,14 +1400,18 @@
     "period": {
       "from_month": "2025-01",
       "to_month": "2025-01",
-      "months": 1
+      "months": 1,
+      "days_covered": 31,
+      "minimum_months": 3,
+      "sufficient_history": false
     },
-    "composite_score": 966,
+    "composite_score": 841,
     "scale": "0-1000",
     "rating_band": "Excellent",
-    "decision": "APPROVE",
+    "decision": "REFER",
     "decision_reasons": [
-      "Band \"Excellent\" maps to APPROVE under the default policy"
+      "Statement balance arithmetic broken on 1 row(s) — possible tampering",
+      "Only 1 month(s) / 31 days of history — at least 3 months are required to decide; request more statements"
     ],
     "provisional": false,
     "pending_review_items": 0,
@@ -1418,8 +1419,8 @@
       {
         "component": "Income Stability",
         "weight_pct": 25,
-        "score_0_100": 96,
-        "points": 240
+        "score_0_100": 70,
+        "points": 175
       },
       {
         "component": "Debt Service",
@@ -1442,8 +1443,8 @@
       {
         "component": "Fraud Indicators",
         "weight_pct": 15,
-        "score_0_100": 100,
-        "points": 150
+        "score_0_100": 60,
+        "points": 90
       },
       {
         "component": "Expense Management",
@@ -1524,7 +1525,7 @@
         "overdraft_days": 0
       },
       "fraud_indicators": {
-        "balance_arithmetic_breaks": 0,
+        "balance_arithmetic_breaks": 1,
         "circular_transactions": [],
         "overnight_pass_through": [],
         "structuring": []
@@ -1533,18 +1534,18 @@
         "monthly_spend": [
           {
             "month": "2025-01",
-            "total": 76469.6,
-            "essential": 61563.9,
+            "total": 76569.6,
+            "essential": 61663.9,
             "discretionary": 14905.7,
             "fixed": 49038
           }
         ],
         "essential_share_pct": 80.5,
         "discretionary_share_pct": 19.5,
-        "fixed_share_pct": 64.1,
-        "variable_share_pct": 35.9,
+        "fixed_share_pct": 64,
+        "variable_share_pct": 36,
         "spend_trend_first_to_last_pct": 0,
-        "savings_rate_after_emi_pct": 19.1
+        "savings_rate_after_emi_pct": 19
       }
     }
   }

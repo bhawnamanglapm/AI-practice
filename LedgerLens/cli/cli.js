@@ -5,19 +5,28 @@
  * PDF text (pdfjs-dist), OCR (tesseract.js) and scanned-PDF rendering (poppler's pdftoppm, if installed).
  *
  *   node cli.js <file> [more files…] [-o output.json] [--password <pw>] [--sample flags|clean|jumbled] [--review all]
+ *               [--llm auto|all|off] [--model <id>]
+ *
+ * LLM step: on when ANTHROPIC_API_KEY (or ANTHROPIC_AUTH_TOKEN) is set, unless --llm off.
+ *   auto (default) — the model reads only 3-page batches the rules cannot parse, and labels uncertain rows
+ *   all            — the model reads every batch (rules then validate its output), and labels uncertain rows
+ *   off            — rules only
  */
 const fs = require('fs'); const path = require('path'); const os = require('os'); const { execFileSync } = require('child_process');
 const args = process.argv.slice(2);
-const opt = { out: null, pw: null, sample: null, review: 'smart', files: [] };
+const opt = { out: null, pw: null, sample: null, review: 'smart', llm: 'auto', model: null, files: [] };
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
   if (a === '-o' || a === '--out') opt.out = args[++i];
   else if (a === '--password') opt.pw = args[++i];
   else if (a === '--sample') opt.sample = args[++i];
   else if (a === '--review') opt.review = args[++i];
+  else if (a === '--llm') opt.llm = args[++i];
+  else if (a === '--model') opt.model = args[++i];
   else if (a === '-h' || a === '--help') { console.log(fs.readFileSync(__filename, 'utf8').split('*/')[0]); process.exit(0); }
   else opt.files.push(a);
 }
+if (!['auto', 'all', 'off'].includes(opt.llm)) { console.error('--llm must be auto, all or off'); process.exit(1); }
 if (!opt.files.length && !opt.sample) { console.error('Usage: node cli.js <statement.pdf|.png|.jpg|.xlsx|.csv|.txt> [...] [-o out.json] [--password pw] | --sample flags|clean|jumbled'); process.exit(1); }
 
 // ---- minimal browser shims the engine expects ----
@@ -33,7 +42,7 @@ const src = fs.readFileSync(path.join(__dirname, 'engine.js'), 'utf8');
 const Component = new Function('DCLogic', 'window', 'navigator', src + '\nreturn Component;')(DCLogic, window, navigator);
 
 class CliEngine extends Component {
-  log(level, step, msg, push, meta) { super.log(level, step, msg, push, meta); if (level !== 'INFO' || /Run (started|completed)|Decision|OCR/.test(step + msg)) console.error('  [' + level + '] ' + step + ': ' + msg); }
+  log(level, step, msg, push, meta) { super.log(level, step, msg, push, meta); if (level !== 'INFO' || /Run (started|completed)|Decision|OCR|LLM/.test(step + msg)) console.error('  [' + level + '] ' + step + ': ' + msg); }
   ocrEngine() {
     if (this._twP) return this._twP;
     this._twP = this._makeOcr(); this._twP.then((w) => { this._tw = w; });
@@ -65,10 +74,24 @@ class CliEngine extends Component {
     return { __png: fs.readFileSync(path.join(tmp, f)) };
   }
   async pdfToPages(buf, password, ocrName) { this._cliPdf = this._cliPaths[ocrName]; return super.pdfToPages(buf, password, ocrName); }
+  // LLM step: the engine's hooks, backed by Claude (llm.js). LEDGERLENS_LLM_MOCK points tests at a stand-in module.
+  llmEnabled() { return !!this._llm; }
+  llmExtractMode() { return opt.llm; }
+  llmExtractBatch(req) { return this._llm.extractBatch(req); }
+  llmClassify(req) { return this._llm.classify(req); }
+}
+
+function makeLlm() {
+  if (opt.llm === 'off') return null;
+  if (process.env.LEDGERLENS_LLM_MOCK) return require(path.resolve(process.env.LEDGERLENS_LLM_MOCK));
+  if (!process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_AUTH_TOKEN) return null;
+  return require('./llm').createLlm({ model: opt.model });
 }
 
 (async () => {
   const c = new CliEngine({}); c.state.reviewMode = opt.review === 'all' ? 'all' : 'smart'; c._cliPaths = {};
+  c._llm = makeLlm();
+  console.error(c._llm ? '  LLM step: on (' + (c._llm.model || 'model') + ', extraction ' + opt.llm + ')' : '  LLM step: off (' + (opt.llm === 'off' ? '--llm off' : 'no ANTHROPIC_API_KEY') + ') — rules only');
   const t0 = Date.now();
   if (opt.sample) { await c.runPipeline(c.genSample(opt.sample), 'built-in sample: ' + opt.sample); }
   else {

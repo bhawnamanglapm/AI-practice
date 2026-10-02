@@ -1,6 +1,6 @@
 {
   "schema": "ledgerlens.bsa.v1",
-  "generated_at": "2026-10-01T20:31:35.017Z",
+  "generated_at": "2026-10-02T07:56:37.341Z",
   "run": {
     "id": 1,
     "source": "01_single_month_digital.pdf",
@@ -221,9 +221,9 @@
         "group": "Completeness",
         "check": "Enough history to score",
         "status": "WARNING",
-        "result": "1 month(s), 32 transactions — at least 3 months recommended",
-        "rule": "At least 3 months and 20 transactions.",
-        "on_fail": "Warning: score is less reliable."
+        "result": "1 month(s), 32 transactions — under 3 months, decision forced to REFER",
+        "rule": "At least 3 months (75+ days) and 20 transactions.",
+        "on_fail": "Under 3 months: decision forced to REFER. Under 20 transactions: warning."
       },
       {
         "id": 21,
@@ -1279,8 +1279,8 @@
       "essential": "discretionary",
       "fixed_or_variable": "variable",
       "classification_confidence": 0.35,
-      "method": "LLM",
-      "method_reason": "No confident category",
+      "method": "RULE",
+      "method_reason": "No rule matched",
       "review": {
         "flagged": false,
         "reasons": [
@@ -1404,14 +1404,17 @@
     "period": {
       "from_month": "2025-01",
       "to_month": "2025-01",
-      "months": 1
+      "months": 1,
+      "days_covered": 31,
+      "minimum_months": 3,
+      "sufficient_history": false
     },
-    "composite_score": 966,
+    "composite_score": 901,
     "scale": "0-1000",
     "rating_band": "Excellent",
-    "decision": "APPROVE",
+    "decision": "REFER",
     "decision_reasons": [
-      "Band \"Excellent\" maps to APPROVE under the default policy"
+      "Only 1 month(s) / 31 days of history — at least 3 months are required to decide; request more statements"
     ],
     "provisional": false,
     "pending_review_items": 0,
@@ -1419,8 +1422,8 @@
       {
         "component": "Income Stability",
         "weight_pct": 25,
-        "score_0_100": 96,
-        "points": 240
+        "score_0_100": 70,
+        "points": 175
       },
       {
         "component": "Debt Service",

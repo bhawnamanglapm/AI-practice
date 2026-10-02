@@ -809,7 +809,7 @@ class Component extends DCLogic {
     super(props);
     this.state = {
       tab: 'ingest', source: null, pages: [], batches: [], accounts: [], raw: [], error: null,
-      stages: null, busy: false, previewPage: 0, threshold: 0.7, customRules: [], csvMsg: '',
+      stages: null, busy: false, previewPage: 0, threshold: 0.7, llmLabels: {}, customRules: [], csvMsg: '',
       overrides: {}, cpOverrides: {}, fAcct: 'ALL', fMonth: 'ALL', fFlag: false, fileNote: '', log: [], current: null, runStatus: null, showJson: false, jsonMsg: '', reviewMode: 'smart', confirmAcceptAll: false, cpRules: [], cpRuleMsg: '', ruleDraft: {}, newRule: { match: '', cp: '', cat: '' }, acctDraft: {}, showAcctForm: false, acctSkipped: false, acctMsg: '', orderCheck: null, showVal: true, groupDraft: {}, confirmAcceptAll: false, ocrState: { st: 'idle', msg: 'Not loaded yet', detail: 'Loads automatically for a scan or image (about 7 MB, first use only)' }, showFormats: true, ocrMsg: '', logLevel: 'ALL', logRun: 'ALL', confirmClear: false, openInfo: {}, needPw: null, pwText: ''
     };
     this._log = [];
@@ -1305,6 +1305,100 @@ class Component extends DCLogic {
     return { batches, accounts: list, raw };
   }
 
+  // ---------- LLM step (hooks) ----------
+  // The engine stays model-agnostic and runs in the browser, which holds no API key. A host (the CLI) overrides
+  // llmEnabled / llmExtractBatch / llmClassify to call a real model; without one, every run is rules-only.
+  llmEnabled() { return false; }
+  llmExtractMode() { return 'auto'; } // auto: only batches the rules cannot read · all: every batch · off
+  async llmExtractBatch(req) { throw new Error('no LLM configured'); }
+  async llmClassify(req) { throw new Error('no LLM configured'); }
+  // A page "looks like a statement page the rules missed" when it carries several dates but parseRows found nothing.
+  llmNeedsPage(p) {
+    if (this.parseRows(p.text).some((r) => r.dr > 0 || r.cr > 0 || r.amt > 0)) return false;
+    const dates = (p.text.match(/\b\d{1,2}[\/\-.](?:\d{1,2}|[A-Za-z]{3})[\/\-.]\d{2,4}\b|\b\d{4}-\d{2}-\d{2}\b/g) || []).length;
+    return dates >= 3;
+  }
+  // Model output -> the engine's own page format (header "Key: Value" lines + pipe table), so metadata inheritance,
+  // debit/credit resolution and every validation check run on LLM output exactly as they do on rule output.
+  llmPageText(pg, orig) {
+    const m = pg.metadata || {}; const L = [];
+    const dmy = (iso) => (iso && /^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4) : '');
+    const num = (v) => (v === null || v === undefined || isNaN(Number(v)) ? '' : Number(v).toFixed(2));
+    const clean = (t) => String(t || '').replace(/[|\n\r]+/g, ' / ').replace(/\s+/g, ' ').trim();
+    if (m.bank_name) L.push('Bank Name: ' + clean(m.bank_name));
+    if (m.account_number) L.push('Account Number: ' + clean(m.account_number));
+    if (m.account_holder) L.push('Account Holder: ' + clean(m.account_holder));
+    if (m.account_type) L.push('Account Type: ' + clean(m.account_type));
+    if (m.currency) L.push('Currency: ' + clean(m.currency).toUpperCase());
+    if (m.opening_balance !== null && m.opening_balance !== undefined) L.push('Opening Balance: ' + num(m.opening_balance));
+    if (m.closing_balance !== null && m.closing_balance !== undefined) L.push('Closing Balance: ' + num(m.closing_balance));
+    if (m.period_from && m.period_to) L.push('Statement Period: ' + dmy(m.period_from) + ' to ' + dmy(m.period_to));
+    L.push('| Date | Value Date | Narration | Debit | Credit | Balance |', '|---|---|---|---|---|---|');
+    (pg.transactions || []).forEach((t) => {
+      const d = dmy(t.date); if (!d) return;
+      L.push('| ' + d + ' | ' + (dmy(t.value_date) || d) + ' | ' + clean(t.narration) + ' | ' + num(t.debit) + ' | ' + num(t.credit) + ' | ' + num(t.balance) + ' |');
+    });
+    const foot = (orig.match(/Page\s+\d+\s+of\s+\d+/i) || [])[0]; if (foot) L.push(foot);
+    return L.join('\n');
+  }
+  async llmExtract(pages) {
+    const mode = this.llmExtractMode(); if (mode === 'off') return pages;
+    const BATCH = 3; const out = pages.slice(); let ctx = {}; let used = 0, failed = 0;
+    for (let b = 0; b * BATCH < pages.length; b++) {
+      const bp = pages.slice(b * BATCH, b * BATCH + BATCH);
+      bp.forEach((p) => { const m = this.readMeta(p.text); ['bank', 'account', 'currency', 'holder'].forEach((k) => { if (m[k]) ctx[k] = m[k]; }); });
+      const need = mode === 'all' || bp.some((p) => this.llmNeedsPage(p));
+      if (!need) continue;
+      try {
+        const t0 = Date.now();
+        const res = await this.llmExtractBatch({ batch: b + 1, pages: bp.map((p) => ({ index: p.index, text: p.text })), carried: { bank_name: ctx.bank || null, account_number: ctx.account || null, currency: ctx.currency || null, account_holder: ctx.holder || null } });
+        const byIdx = {}; (res.pages || []).forEach((pg) => { byIdx[pg.page_index] = pg; });
+        let rows = 0;
+        bp.forEach((p) => {
+          const pg = byIdx[p.index]; if (!pg) return;
+          const ruleRows = this.parseRows(p.text).filter((r) => r.dr > 0 || r.cr > 0 || r.amt > 0).length; const n = (pg.transactions || []).length; rows += n;
+          if (mode === 'all' && ruleRows && ruleRows !== n) this.log('WARN', 'LLM extract', 'Page ' + p.index + ': model read ' + n + ' rows, rules read ' + ruleRows + ' — balance checks will decide', false);
+          const meta = pg.metadata || {}; ['bank_name', 'account_number', 'currency', 'account_holder'].forEach((k) => { if (meta[k]) ctx[{ bank_name: 'bank', account_number: 'account', currency: 'currency', account_holder: 'holder' }[k]] = meta[k]; });
+          out[pages.indexOf(p)] = { ...p, text: this.llmPageText(pg, p.text), srcText: p.text, llm: true };
+        });
+        used++;
+        this.log('INFO', 'LLM extract', 'Batch ' + (b + 1) + ' (pages ' + bp.map((p) => p.index).join(', ') + '): ' + rows + ' rows read by ' + (res.model || 'model') + ' in ' + ((Date.now() - t0) / 1000).toFixed(1) + ' s', false);
+      } catch (e) {
+        failed++;
+        this.log('WARN', 'LLM extract', 'Batch ' + (b + 1) + ' failed (' + (e && e.message ? e.message : e) + ') — kept the rule-based reading', false);
+      }
+    }
+    if (used || failed) this.log('INFO', 'LLM extract', used + ' batch(es) read by the model' + (failed ? ', ' + failed + ' fell back to rules' : ''), false);
+    return out;
+  }
+  // Rows the rules are unsure about (low category or counterparty confidence, OTHER, lexical guesses) go to the model in chunks.
+  async llmLabelRows(T, threshold) {
+    const cand = T.filter((t) => t.method !== 'MANUAL' && (t.conf < threshold || t.cpConf < threshold || /^OTHER_/.test(t.l2) || t.lexical));
+    if (!cand.length) return {};
+    const tax = this.taxonomy(); const labels = {}; const CHUNK = 40; let failed = 0;
+    for (let i = 0; i < cand.length; i += CHUNK) {
+      const part = cand.slice(i, i + CHUNK);
+      try {
+        const res = await this.llmClassify({
+          taxonomy: tax.map((x) => ({ code: x.code, level1: x.l1, group: x.group })),
+          rows: part.map((t) => ({ id: t.id, narration: t.narr, level1: t.l1, amount: t.amount, channel: t.channel, rule_counterparty: t.cp, rule_counterparty_confidence: Math.round(t.cpConf * 100) / 100, rule_category: t.l2, rule_confidence: Math.round(t.conf * 100) / 100 }))
+        });
+        const ids = new Set(part.map((t) => t.id));
+        (res.labels || []).forEach((l) => {
+          const t = part.find((x) => x.id === l.id);
+          // validate the model's answer against the taxonomy and Level 1 before accepting it
+          if (!t || !ids.has(l.id) || !tax.some((x) => x.code === l.level2 && x.l1 === t.l1)) return;
+          labels[l.id] = { l2: l.level2, conf: this.clamp(Number(l.confidence) || 0, 0, 0.95), cp: String(l.counterparty || '').trim().toUpperCase() || null, cpConf: this.clamp(Number(l.counterparty_confidence) || 0, 0, 0.95), why: String(l.reason || '').slice(0, 160), model: res.model || 'model' };
+        });
+      } catch (e) {
+        failed++;
+        this.log('WARN', 'LLM classify', 'Chunk ' + (i / CHUNK + 1) + ' failed (' + (e && e.message ? e.message : e) + ') — kept rule labels', false);
+      }
+    }
+    this.log('INFO', 'LLM classify', cand.length + ' uncertain row(s) sent to the model · ' + Object.keys(labels).length + ' label(s) accepted' + (failed ? ' · ' + failed + ' chunk(s) failed' : ''), false);
+    return labels;
+  }
+
   // ---------- enrichment ----------
   normNarr(n) {
     // strip bank-specific wrappers so one set of patterns covers many banks
@@ -1526,20 +1620,20 @@ class Component extends DCLogic {
     if (h) return out(h.r.code, this.isPerson(t.cp) ? 0.82 : 0.9, 'RULE', 'Narration keyword "' + h.k.trim() + '"');
     if ((t.channel === 'UPI' || t.channel === 'IMPS' || t.channel === 'NEFT') && this.isPerson(t.cp)) return out('P2P', 0.84, 'RULE', 'Transfer with an individual');
     // recurring-employer heuristic for unlabeled salary
-    if (L1 === 'CREDIT' && ctx.recurring[t.cpKey] >= 2 && /LTD|PVT|INC|LLP|LIMI|PRIVA/.test(t.cp.toUpperCase())) return out('SALARY', 0.78, 'LLM', 'Monthly recurring credit from a company');
-    // "LLM" fallback stage (simulated with a lexical model in this PoC)
+    if (L1 === 'CREDIT' && ctx.recurring[t.cpKey] >= 2 && /LTD|PVT|INC|LLP|LIMI|PRIVA/.test(t.cp.toUpperCase())) return out('SALARY', 0.78, 'RULE', 'Monthly recurring credit from a company');
+    // lexical fallback — these rows (and OTHER) are what the LLM step re-labels when a model is configured
     const lex = [['SHOPPING', /AMZN|FLIPKART|MYNTRA|BAZAAR|RETAIL/], ['DINING', /KITCHEN|BISTRO|DHABA|PIZZA|BURGER/], ['TRAVEL', /UBER|OLA|IRCTC|TRIP|FLIGHT/], ['UTILITY', /RECHARGE|BILL/]];
-    for (const [c, re] of lex) if (L1 === 'DEBIT' && re.test(u)) return out(c, 0.66, 'LLM', 'Semantic match on narration');
-    return out(L1 === 'CREDIT' ? 'OTHER_CREDIT' : 'OTHER_DEBIT', 0.35, 'LLM', 'No confident category');
+    for (const [c, re] of lex) if (L1 === 'DEBIT' && re.test(u)) return { ...out(c, 0.66, 'RULE', 'Lexical fallback on narration'), lexical: true };
+    return { ...out(L1 === 'CREDIT' ? 'OTHER_CREDIT' : 'OTHER_DEBIT', 0.35, 'RULE', 'No rule matched'), lexical: true };
   }
 
   // ---------- full pipeline (derived) ----------
   buildTxns(st) {
     const s = st || this.state; if (!s.raw.length) return [];
     const c = this._txCache;
-    if (c && c.raw === s.raw && c.ov === s.overrides && c.cov === s.cpOverrides && c.thr === s.threshold && c.cr === s.customRules && c.acc === s.accounts && c.cpr === s.cpRules && c.rm === s.reviewMode) return c.val;
+    if (c && c.raw === s.raw && c.ov === s.overrides && c.cov === s.cpOverrides && c.thr === s.threshold && c.cr === s.customRules && c.acc === s.accounts && c.cpr === s.cpRules && c.rm === s.reviewMode && c.llm === s.llmLabels) return c.val;
     const val = this.buildTxnsRaw(s);
-    this._txCache = { raw: s.raw, ov: s.overrides, cov: s.cpOverrides, thr: s.threshold, cr: s.customRules, acc: s.accounts, cpr: s.cpRules, rm: s.reviewMode, val };
+    this._txCache = { raw: s.raw, ov: s.overrides, cov: s.cpOverrides, thr: s.threshold, cr: s.customRules, acc: s.accounts, cpr: s.cpRules, rm: s.reviewMode, llm: s.llmLabels, val };
     return val;
   }
   buildTxnsRaw(s) {
@@ -1562,15 +1656,18 @@ class Component extends DCLogic {
     const months = {}; base.filter((t) => t.l1 === 'CREDIT').forEach((t) => { months[t.cpKey] = months[t.cpKey] || new Set(); months[t.cpKey].add(t.month); });
     Object.keys(months).forEach((k) => { ctx.recurring[k] = months[k].size; });
     const out0 = base.map((t) => {
+      const lab = (s.llmLabels || {})[t.id];
+      if (lab && lab.cp && !t.cpRule && lab.cpConf > t.cpConf) { t.cp = lab.cp; t.cpKey = this.cpKey(t.cp); t.cpConf = lab.cpConf; t.cpFmt = 'LLM (' + lab.model + ')'; }
       if (s.cpOverrides[t.id]) { t.cp = s.cpOverrides[t.id]; t.cpKey = this.cpKey(t.cp); t.cpConf = 1; }
       let c = this.classify(t, tax, ctx);
+      if (lab && (c.lexical || lab.conf > c.conf)) c = { l2: lab.l2, conf: lab.conf, method: 'LLM', why: lab.why || 'Model label' };
       if (t.cpRule && t.cpRule.cat && tax.some((x) => x.code === t.cpRule.cat && x.l1 === t.l1)) c = { l2: t.cpRule.cat, conf: 0.97, method: 'RULE', why: 'Your counterparty rule' };
       if (s.overrides[t.id]) c = { l2: s.overrides[t.id], conf: 1, method: 'MANUAL', why: 'Set by reviewer' };
       const cat = tax.find((x) => x.code === c.l2 && x.l1 === t.l1) || {};
       const reasons = [];
       if (t.cpConf < s.threshold) reasons.push('Counterparty unclear (' + Math.round(t.cpConf * 100) + '%)');
       if (c.conf < s.threshold) reasons.push('Low classification confidence (' + Math.round(c.conf * 100) + '%)');
-      return { ...t, l2: c.l2, conf: c.conf, method: c.method, why: c.why, group: cat.group || '', ess: cat.ess || '', fix: cat.fix || '', flagged: reasons.length > 0, reasons };
+      return { ...t, l2: c.l2, conf: c.conf, method: c.method, why: c.why, group: cat.group || '', ess: cat.ess || '', fix: cat.fix || '', lexical: !!c.lexical, flagged: reasons.length > 0, reasons };
     });
     return this.triage(out0, s);
   }
@@ -1620,9 +1717,13 @@ class Component extends DCLogic {
     const cv = mean ? sd / mean : 1;
     const growth = income[0] ? (income[income.length - 1] - income[0]) / income[0] : 0;
     const shareTop = primary && sum(income) ? sum(primary.vals) / sum(income) : 1;
-    const sReg = this.clamp(100 - cv * 250, 0, 100) * (months.every((m, i) => pv[i] > 0) ? 1 : 0.6);
+    // history: regularity needs >= 2 months of income, growth >= 3; with less they score neutral (50), never perfect
+    const spanDays = (() => { const d = T.map((t) => this.dayNum(t.date)); return Math.max(...d) - Math.min(...d) + 1; })();
+    const MIN_MONTHS = 3, MIN_DAYS = 75;
+    const historyOk = months.length >= MIN_MONTHS && spanDays >= MIN_DAYS;
+    const sReg = months.length < 2 ? 50 : this.clamp(100 - cv * 250, 0, 100) * (months.every((m, i) => pv[i] > 0) ? 1 : 0.6);
     const sDiv = incomeCats.length >= 3 ? 100 : incomeCats.length === 2 ? 85 : incomeCats.length === 1 ? 60 : 0;
-    const sGrow = growth >= 0.05 ? 100 : growth >= 0 ? 80 : growth >= -0.1 ? 60 : 30;
+    const sGrow = months.length < MIN_MONTHS ? 50 : growth >= 0.05 ? 100 : growth >= 0 ? 80 : growth >= -0.1 ? 60 : 30;
     const sLvl = this.clamp(avgInc / 100000 * 100, 0, 100);
     const incomeScore = 0.4 * sReg + 0.2 * sDiv + 0.2 * sGrow + 0.2 * sLvl;
 
@@ -1726,10 +1827,11 @@ class Component extends DCLogic {
     if (structuring.length) { if (decision !== 'DECLINE') decision = 'REFER'; why.push('Cash deposits structured just below ₹50,000 reporting threshold'); }
     if (circular.length) { if (decision.indexOf('APPROVE') === 0) decision = 'REFER'; why.push('Circular fund movement with the same counterparty within 3 days'); }
     if (bounced) { if (decision === 'APPROVE') decision = 'APPROVE WITH CONDITIONS'; why.push('EMI bounce in the period — condition: NACH mandate on the salary account'); }
+    if (!historyOk) { if (decision !== 'DECLINE') decision = 'REFER'; why.push('Only ' + months.length + ' month(s) / ' + spanDays + ' days of history — at least ' + MIN_MONTHS + ' months are required to decide; request more statements'); }
     if (penalties.length) why.push(penalties.length + ' penalty fee(s) on the credit card');
     if (!why.length) why.push('Band "' + band + '" maps to ' + decision + ' under the default policy');
     return {
-      months, comps, total, band, decision, why, incomeByCat, income, avgInc, cv, growth, shareTop, incomeCats, loanList, monthlyEmi, foir, bounceRate, ontimeRate, bounced, presented,
+      months, spanDays, historyOk, minMonths: MIN_MONTHS, comps, total, band, decision, why, incomeByCat, income, avgInc, cv, growth, shareTop, incomeCats, loanList, monthlyEmi, foir, bounceRate, ontimeRate, bounced, presented,
       avgEod, minEod, negDays, eodDays: eod.length, bounceCharges, penalties, chargeAmt, integrity, circular, overnight, structuring, exp, essM, discM, fixM, discShare, fixedShare, expTrend, savingsRate, totExp
     };
   }
@@ -1787,7 +1889,7 @@ class Component extends DCLogic {
     this._txCache = null; this._scCache = null; this._exCache = null;
     this.setState({
       raw: [], accounts: [], batches: [], pages: [], stages: null, error: null, current: null, needPw: null, pwText: '', acctDraft: {}, showAcctForm: false, acctSkipped: false, acctMsg: '', orderCheck: null, showVal: true, groupDraft: {}, confirmAcceptAll: false,
-      overrides: {}, cpOverrides: {}, previewPage: 0, fAcct: 'ALL', fMonth: 'ALL', fFlag: false, openInfo: {}, confirmClear: false,
+      overrides: {}, cpOverrides: {}, llmLabels: {}, previewPage: 0, fAcct: 'ALL', fMonth: 'ALL', fFlag: false, openInfo: {}, confirmClear: false,
       source: label, logRun: String(this._runId), logLevel: 'ALL', log: this._log.slice(),
       runStatus: { state: 'running', run: this._runId, source: label, started: this.now(), day: this.today(), replaced }
     });
@@ -1807,7 +1909,7 @@ class Component extends DCLogic {
     const replaced = this._replacedPending || null; this._replacedPending = null;
     const startedAt = this.now();
     this.setState({ runStatus: { state: 'running', run: this._runId, source: sourceLabel, started: startedAt, day: this.today(), replaced } });
-    this.setState({ busy: true, error: null, pages, source: sourceLabel, raw: [], accounts: [], batches: [], overrides: {}, cpOverrides: {}, previewPage: 0, fAcct: 'ALL', fMonth: 'ALL', stages: stages.slice(), log: this._log.slice() });
+    this.setState({ busy: true, error: null, pages, source: sourceLabel, raw: [], accounts: [], batches: [], overrides: {}, cpOverrides: {}, llmLabels: {}, previewPage: 0, fAcct: 'ALL', fMonth: 'ALL', stages: stages.slice(), log: this._log.slice() });
     try {
       // 1 convert
       push(0, 'running', 'Converting pages…', 'Converting ' + pages.length + ' page(s) to structured text');
@@ -1827,8 +1929,10 @@ class Component extends DCLogic {
       this.log(v.soft && !v.datesChecked ? 'WARN' : 'INFO', 'Validate order', (v.soft && !v.datesChecked ? 'Order could not be verified: ' : 'Order confirmed via ') + v.method, false);
       this.setState({ orderCheck: v });
       push(1, 'done', 'Checked via ' + v.method);
-      // 3 batches
-      const ex = this.extract(pages);
+      // 3 batches — the model reads batches the rules cannot (or every batch in "all" mode); output is re-checked by the rules
+      let exPages = pages;
+      if (this.llmEnabled()) { push(2, 'running', 'Model reading batches…', 'Sending 3-page batches to the LLM'); exPages = await this.llmExtract(pages); }
+      const ex = this.extract(exPages);
       {
         // data cleaning: exact duplicate rows (overlapping statements) and impossible dates
         const pageFile = {}; pages.forEach((p) => { pageFile[p.index] = p.file || 'file'; });
@@ -1868,8 +1972,13 @@ class Component extends DCLogic {
       // 4 enrich
       push(3, 'running', 'Extracting counterparties…', 'Extracting counterparty, payment channel and special attributes for ' + ex.raw.length + ' rows');
       await sleep(40);
-      const tmp = { ...this.state, raw: ex.raw, accounts: ex.accounts, overrides: {}, cpOverrides: {} };
-      const T = this.buildTxns(tmp);
+      const tmp = { ...this.state, raw: ex.raw, accounts: ex.accounts, overrides: {}, cpOverrides: {}, llmLabels: {} };
+      let T = this.buildTxns(tmp);
+      if (this.llmEnabled()) {
+        push(3, 'running', 'Model labelling uncertain rows…', 'Sending low-confidence counterparties / categories to the LLM');
+        tmp.llmLabels = await this.llmLabelRows(T, tmp.threshold);
+        T = this.buildTxns(tmp);
+      }
       const lowCp = T.filter((t) => t.cpConf < tmp.threshold).length;
       const ch = {}; T.forEach((t) => { ch[t.channel] = (ch[t.channel] || 0) + 1; });
       this.log('INFO', 'Enrich', 'Channels: ' + Object.keys(ch).map((k) => k + ' ' + ch[k]).join(', '), false);
@@ -1883,7 +1992,7 @@ class Component extends DCLogic {
       const fl = T.filter((t) => t.flagged).length;
       this.log('INFO', 'Classify', 'RULE ' + mc('RULE') + ' · LLM ' + mc('LLM') + ' · MANUAL ' + mc('MANUAL') + ' — threshold ' + Math.round(tmp.threshold * 100) + '%', false);
       if (fl) this.log('WARN', 'Manual review', fl + ' transaction(s) queued for manual review', false);
-      push(4, 'done', 'Two-level taxonomy + confidence', null, { raw: ex.raw });
+      push(4, 'done', 'Two-level taxonomy + confidence', null, { raw: ex.raw, llmLabels: tmp.llmLabels });
       // 6 score
       push(5, 'running', 'Scoring 6 components…', 'Computing income, debt, liquidity, banking, fraud and expense metrics');
       await sleep(40);
@@ -1985,10 +2094,10 @@ class Component extends DCLogic {
       val: 'CHECKS  The "Page X of Y" footer on each page matches its position in the file.\nFAILS  If a page is out of place: the run stops and names the misplaced page.\nFALLBACK  No page footers found: the order check is skipped and noted.',
       ext: 'BATCH  3 pages at a time (sized for one model call in production).\nHEADER  Bank, account / card no., holder, account type, currency, opening balance.\nINHERITS  Pages with no header carry those fields from earlier pages; logged.\nROWS  Date, value date, narration, debit, credit, balance. Single-amount rows get debit / credit from the balance change; wrapped narrations are re-joined.',
       enr: 'COUNTERPARTY  Mandatory. Parsed from the narration format (UPI, NEFT / RTGS, IMPS, NACH, BBPS, card, Apple Pay, ATM, cash, bank charges) with a confidence score.\nCHANNEL  UPI, NEFT, IMPS, RTGS, NACH / ACH, ATM, cheque, cash, BBPS, card, internal, transfer.\nATTRIBUTES  Loan a/c no., card last 4, platform (Stripe, Apple Pay…), counterparty a/c, foreign amount and currency.',
-      cls: 'IN SIMPLE WORDS  Like sorting receipts into labelled envelopes (Groceries, Rent, Salary, EMI…). Three helpers sort, one after another.\n1 RULE  The rule book: your own rules, fixed rules (salary, EMI with loan no., refund, bounce, own transfer, card bill), narration keywords (RENT, TUITION, SWIGGY…), payments to a person = P2P. Very sure: 84–97%.\n2 LLM  The smart guesser for leftovers (in this PoC a simple keyword stand-in for an AI model). Fairly sure: 66–78%; if nothing fits → OTHER at 35%.\n3 MANUAL  Anything under the threshold goes to the Review queue; a person decides → 100%.\nEVERY ROW  Gets Level 1 (CREDIT / DEBIT), Level 2 category, a confidence % and the method that sorted it.',
+      cls: 'IN SIMPLE WORDS  Like sorting receipts into labelled envelopes (Groceries, Rent, Salary, EMI…). Three helpers sort, one after another.\n1 RULE  The rule book: your own rules, fixed rules (salary, EMI with loan no., refund, bounce, own transfer, card bill), narration keywords (RENT, TUITION, SWIGGY…), payments to a person = P2P. Very sure: 84–97%.\n2 LLM  Leftovers (low confidence, OTHER, lexical guesses) go to Claude when an API key is configured (CLI); the answer is checked against the taxonomy. Without a key the rule guess stays (66–78%, or OTHER at 35%).\n3 MANUAL  Anything under the threshold goes to the Review queue; a person decides → 100%.\nEVERY ROW  Gets Level 1 (CREDIT / DEBIT), Level 2 category, a confidence % and the method that sorted it.',
       review: 'WHO  A person, in the Review queue.\nDOES  Fix the counterparty or category, or confirm as is. Each fix = MANUAL, 100% confidence; the score re-runs instantly.\nDONE  When no transaction is below the threshold.',
       score: 'INCOME 25%  Regularity, sources, growth, level (P2P, refunds, loans, own transfers excluded).\nDEBT 20%  EMIs per loan, FOIR, bounce rate, on-time rate.\nLIQUIDITY 15%  Avg / min end-of-day balance, negative days.\nBANKING 10%  Bounces, charges, penalties, overdraft.\nFRAUD 15%  Balance arithmetic, circular, overnight, structuring.\nEXPENSE 15%  Essential vs discretionary, fixed vs variable, trend, savings.\nTOTAL  Weighted sum × 10 → 0–1000.',
-      decision: 'BAND  800+ Excellent · 700 Good → APPROVE · 600 Fair → WITH CONDITIONS · 500 Below Avg → REFER · <500 Poor → DECLINE.\nOVERRIDES  FOIR > 65% → DECLINE · tampering, structuring, circular flows → REFER · EMI bounce turns APPROVE into WITH CONDITIONS.\nPROVISIONAL  Until the review queue is clear.',
+      decision: 'BAND  800+ Excellent · 700 Good → APPROVE · 600 Fair → WITH CONDITIONS · 500 Below Avg → REFER · <500 Poor → DECLINE.\nOVERRIDES  FOIR > 65% → DECLINE · under 3 months of history, tampering, structuring, circular flows → REFER · EMI bounce turns APPROVE into WITH CONDITIONS.\nPROVISIONAL  Until the review queue is clear.',
       text: 'Each page is converted to plain text with three parts:\n1  HEADER  "Key: Value" lines — Account Holder, Account Number, Account Type, Currency, Statement Period, Opening Balance. Continuation pages may have none.\n2  TABLE  | Date | Value Date | Narration | Debit | Credit | Balance | — one row per transaction, dates DD/MM/YYYY, amounts like 1,42,500.00.\n3  FOOTER  "Page X of Y", used for the order check.\nPDF text without pipes is read as: date  [value date]  narration  amount  balance.'
     };
   }
@@ -2074,7 +2183,7 @@ class Component extends DCLogic {
       })),
       credit_risk_summary: R ? {
         customer: (s.accounts[0] && s.accounts[0].holder) || null,
-        period: { from_month: R.months[0], to_month: R.months[R.months.length - 1], months: R.months.length },
+        period: { from_month: R.months[0], to_month: R.months[R.months.length - 1], months: R.months.length, days_covered: R.spanDays, minimum_months: R.minMonths, sufficient_history: R.historyOk },
         composite_score: R.total, scale: '0-1000', rating_band: R.band, decision: R.decision, decision_reasons: R.why,
         provisional: T.some((t) => t.flagged), pending_review_items: T.filter((t) => t.flagged).length,
         components: R.comps.map((c) => ({ component: c.name, weight_pct: Math.round(c.w * 100), score_0_100: Math.round(c.s * 10) / 10, points: Math.round(c.s * c.w * 10) })),
@@ -2111,7 +2220,7 @@ class Component extends DCLogic {
       ['Integrity', 'Valid dates', 'No dates before 2000 or in the future.', 'Bad rows dropped (usually OCR misreads); warning shown.'],
       ['Integrity', 'Valid amounts', 'Each row moves money one way: a debit or a credit, not both and not neither.', 'Rows without an amount dropped; rows with both flagged.'],
       ['Completeness', 'No missing months / long gaps', 'No account goes more than 35 days without a transaction.', 'Warning: a missing month can hide a bounce or salary gap.'],
-      ['Completeness', 'Enough history to score', 'At least 3 months and 20 transactions.', 'Warning: score is less reliable.'],
+      ['Completeness', 'Enough history to score', 'At least 3 months (75+ days) and 20 transactions.', 'Under 3 months: decision forced to REFER. Under 20 transactions: warning.'],
       ['Consistency', 'Currency', 'All accounts in one currency; foreign card spends noted.', 'Warning: mixed currencies must not be added together.'],
       ['Consistency', 'All accounts belong to the same applicant', 'Holder names across accounts match (joint accounts allowed).', 'Warning: another person’s statement would inflate income.']
     ];
@@ -2185,7 +2294,7 @@ class Component extends DCLogic {
     });
     add('Completeness', 'No missing months / long gaps', gaps.length ? 'warn' : 'pass', gaps.length ? gaps.join(' · ') : 'No gap longer than 35 days', 'A missing month can hide an EMI bounce or salary gap.');
     const months = new Set(T.map((t) => t.month)).size;
-    add('Completeness', 'Enough history to score', months < 3 || T.length < 20 ? 'warn' : 'pass', months + ' month(s), ' + T.length + ' transactions' + (months < 3 ? ' — at least 3 months recommended' : '') + (T.length < 20 ? ' — very few transactions' : ''), 'Regularity and trends need several months.');
+    add('Completeness', 'Enough history to score', (R && !R.historyOk) || T.length < 20 ? 'warn' : 'pass', months + ' month(s), ' + T.length + ' transactions' + (R && !R.historyOk ? ' — under 3 months, decision forced to REFER' : '') + (T.length < 20 ? ' — very few transactions' : ''), 'Regularity and trends need several months.');
     // CONSISTENCY
     const curs = Array.from(new Set(s.accounts.map((a) => a.currency)));
     const fx = T.filter((t) => t.currency !== (t.acct && t.acct.currency)).length;

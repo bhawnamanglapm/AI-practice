@@ -16,3 +16,5 @@ Record the screen at 1440 px wide. Have the `test-statements/` folder open besid
 | 10 | 3:45–4:00 | Run the sample **Jumbled pages**. | "If pages are out of order, the pipeline stops with a clear error instead of producing a wrong score. The Activity log keeps every run. That's LedgerLens." |
 
 **Optional CLI clip (20 s).** Run `node cli.js ../test-statements/02_multi_month_multi_account.pdf -o out.json`. It produces the same numbers as the web app.
+
+**Optional LLM clip (30 s).** With `ANTHROPIC_API_KEY` set, run `node cli.js ../test-statements/05_amount_drcr_column.csv -o out.json`. Point at the log: "LLM extract: Batch 1 … rows read by claude-opus-5-5" and "LLM classify: … labels accepted". Then run it with `--llm off` to show the rules alone stop on this layout. Also say: "A single-month statement is now referred, not approved: three months of history are needed to decide."

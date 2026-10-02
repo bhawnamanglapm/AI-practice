@@ -1,8 +1,8 @@
 {
   "schema": "ledgerlens.bsa.v1",
-  "generated_at": "2026-10-01T20:31:40.695Z",
+  "generated_at": "2026-10-02T07:56:43.527Z",
   "run": {
-    "id": 3,
+    "id": 1,
     "source": "03a_scanned_page1.png",
     "pages": 1,
     "batches": [
@@ -220,9 +220,9 @@
         "group": "Completeness",
         "check": "Enough history to score",
         "status": "WARNING",
-        "result": "1 month(s), 18 transactions — at least 3 months recommended — very few transactions",
-        "rule": "At least 3 months and 20 transactions.",
-        "on_fail": "Warning: score is less reliable."
+        "result": "1 month(s), 18 transactions — under 3 months, decision forced to REFER — very few transactions",
+        "rule": "At least 3 months (75+ days) and 20 transactions.",
+        "on_fail": "Under 3 months: decision forced to REFER. Under 20 transactions: warning."
       },
       {
         "id": 21,
@@ -895,14 +895,17 @@
     "period": {
       "from_month": "2025-01",
       "to_month": "2025-01",
-      "months": 1
+      "months": 1,
+      "days_covered": 17,
+      "minimum_months": 3,
+      "sufficient_history": false
     },
-    "composite_score": 959,
+    "composite_score": 894,
     "scale": "0-1000",
     "rating_band": "Excellent",
-    "decision": "APPROVE",
+    "decision": "REFER",
     "decision_reasons": [
-      "Band \"Excellent\" maps to APPROVE under the default policy"
+      "Only 1 month(s) / 17 days of history — at least 3 months are required to decide; request more statements"
     ],
     "provisional": false,
     "pending_review_items": 0,
@@ -910,8 +913,8 @@
       {
         "component": "Income Stability",
         "weight_pct": 25,
-        "score_0_100": 87.3,
-        "points": 218
+        "score_0_100": 61.3,
+        "points": 153
       },
       {
         "component": "Debt Service",
