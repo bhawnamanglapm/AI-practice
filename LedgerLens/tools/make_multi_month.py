@@ -1,8 +1,14 @@
-import json
+# Renders one of the engine's built-in samples (Jan–Mar 2025, 3 accounts) as a PDF.
+# Run from the LedgerLens folder (needs node and reportlab):
+#   python3 tools/make_multi_month.py                 -> 02_multi_month_multi_account.pdf  ("flags": bounce, structuring, circular flow)
+#   python3 tools/make_multi_month.py clean           -> 07_good_applicant_3_months.pdf    ("clean": same customer, no red flags)
+import json, subprocess, sys
+variant = sys.argv[1] if len(sys.argv) > 1 else 'flags'
+out = {'flags': 'test-statements/02_multi_month_multi_account.pdf', 'clean': 'test-statements/07_good_applicant_3_months.pdf'}[variant]
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.pdfgen import canvas
-pages=json.load(open('multi_pages.json'))
-c=canvas.Canvas('test-statements/02_multi_month_multi_account.pdf', pagesize=landscape(A4)); W,H=landscape(A4)
+pages=json.loads(subprocess.run(['node','tools/dump_sample_pages.js',variant],capture_output=True,text=True,check=True).stdout)
+c=canvas.Canvas(out, pagesize=landscape(A4)); W,H=landscape(A4)
 cols=[36,96,156,600,670,740]
 for p in pages:
     y=H-40

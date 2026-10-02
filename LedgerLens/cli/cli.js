@@ -5,7 +5,10 @@
  * PDF text (pdfjs-dist), OCR (tesseract.js) and scanned-PDF rendering (poppler's pdftoppm, if installed).
  *
  *   node cli.js <file> [more files…] [-o output.json] [--password <pw>] [--sample flags|clean|jumbled] [--review all]
- *               [--llm auto|all|off] [--model <id>]
+ *               [--llm auto|all|off] [--model <id>] [--taxonomy categories.csv]
+ *
+ * --taxonomy: override or extend the built-in categories (same CSV as the web app's Taxonomy tab):
+ *   category,level1,group,keywords,expense_type,cost_type   (keywords separated by ;)
  *
  * LLM step: on when ANTHROPIC_API_KEY (or ANTHROPIC_AUTH_TOKEN) is set, unless --llm off.
  *   auto (default) — the model reads only 3-page batches the rules cannot parse, and labels uncertain rows
@@ -14,7 +17,7 @@
  */
 const fs = require('fs'); const path = require('path'); const os = require('os'); const { execFileSync } = require('child_process');
 const args = process.argv.slice(2);
-const opt = { out: null, pw: null, sample: null, review: 'smart', llm: 'auto', model: null, files: [] };
+const opt = { out: null, pw: null, sample: null, review: 'smart', llm: 'auto', model: null, taxonomy: null, files: [] };
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
   if (a === '-o' || a === '--out') opt.out = args[++i];
@@ -23,11 +26,12 @@ for (let i = 0; i < args.length; i++) {
   else if (a === '--review') opt.review = args[++i];
   else if (a === '--llm') opt.llm = args[++i];
   else if (a === '--model') opt.model = args[++i];
+  else if (a === '--taxonomy') opt.taxonomy = args[++i];
   else if (a === '-h' || a === '--help') { console.log(fs.readFileSync(__filename, 'utf8').split('*/')[0]); process.exit(0); }
   else opt.files.push(a);
 }
 if (!['auto', 'all', 'off'].includes(opt.llm)) { console.error('--llm must be auto, all or off'); process.exit(1); }
-if (!opt.files.length && !opt.sample) { console.error('Usage: node cli.js <statement.pdf|.png|.jpg|.xlsx|.csv|.txt> [...] [-o out.json] [--password pw] | --sample flags|clean|jumbled'); process.exit(1); }
+if (!opt.files.length && !opt.sample) { console.error('Usage: node cli.js <statement.pdf|.png|.jpg|.xlsx|.csv|.txt> [...] [-o out.json] [--password pw] [--llm auto|all|off] [--taxonomy categories.csv] | --sample flags|clean|jumbled'); process.exit(1); }
 
 // ---- minimal browser shims the engine expects ----
 const mem = {};
@@ -91,6 +95,14 @@ function makeLlm() {
 (async () => {
   const c = new CliEngine({}); c.state.reviewMode = opt.review === 'all' ? 'all' : 'smart'; c._cliPaths = {};
   c._llm = makeLlm();
+  if (opt.taxonomy) {
+    let rules;
+    try { rules = c.parseCsv(fs.readFileSync(opt.taxonomy, 'utf8')); } catch (e) { console.error('✗ Taxonomy CSV rejected: ' + e.message); process.exit(1); }
+    c.state.customRules = rules;
+    const base = c.defaultTaxonomy();
+    const over = rules.filter((r) => base.some((b) => b.code === r.code && b.l1 === r.l1)).length;
+    console.error('  Taxonomy: ' + path.basename(opt.taxonomy) + ' — ' + over + ' override(s), ' + (rules.length - over) + ' new categor' + (rules.length - over === 1 ? 'y' : 'ies'));
+  }
   console.error(c._llm ? '  LLM step: on (' + (c._llm.model || 'model') + ', extraction ' + opt.llm + ')' : '  LLM step: off (' + (opt.llm === 'off' ? '--llm off' : 'no ANTHROPIC_API_KEY') + ') — rules only');
   const t0 = Date.now();
   if (opt.sample) { await c.runPipeline(c.genSample(opt.sample), 'built-in sample: ' + opt.sample); }
@@ -112,7 +124,7 @@ function makeLlm() {
   const v = out.data_validation.summary; const r = out.credit_risk_summary;
   console.log('✓ ' + T.length + ' transactions · ' + out.accounts.length + ' account(s) · ' + out.run.pages + ' page(s) in ' + ((Date.now() - t0) / 1000).toFixed(1) + ' s');
   console.log('  Validation: ' + v.passed + ' passed · ' + v.warnings + ' warnings · ' + v.failed + ' failed · ' + v.not_applicable + ' n/a');
-  if (r) console.log('  Score: ' + r.composite_score + '/1000 · ' + r.rating_band + ' · ' + r.decision + (r.provisional ? ' (provisional — ' + r.pending_review_items + ' item(s) to review)' : ''));
+  if (r) console.log('  Score: ' + r.composite_score + '/1000 · ' + r.rating_band + (r.decision_overridden ? ' score, overridden → ' : ' → ') + r.decision + (r.provisional ? ' (provisional — ' + r.pending_review_items + ' item(s) to review)' : ''));
   console.log('  JSON written to ' + file);
   process.exit(0);
 })().catch((e) => { console.error('✗ ' + (e && e.stack || e)); process.exit(1); });

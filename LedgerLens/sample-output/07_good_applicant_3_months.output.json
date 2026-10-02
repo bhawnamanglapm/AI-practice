@@ -1,22 +1,22 @@
 {
   "schema": "ledgerlens.bsa.v1",
-  "generated_at": "2026-10-02T08:16:13.567Z",
+  "generated_at": "2026-10-02T08:16:29.509Z",
   "run": {
     "id": 1,
-    "source": "02_multi_month_multi_account.pdf",
+    "source": "07_good_applicant_3_months.pdf",
     "pages": 12,
     "batches": [
       {
         "batch": 1,
         "pages": "1–3",
-        "rows": 36,
+        "rows": 34,
         "accounts": "…7812",
         "metadata_inherited": "account no., bank, currency → pages 2, 3 have no header"
       },
       {
         "batch": 2,
         "pages": "4–6",
-        "rows": 37,
+        "rows": 29,
         "accounts": "…7812",
         "metadata_inherited": "account no., bank, currency → pages 4, 5, 6 have no header"
       },
@@ -30,7 +30,7 @@
       {
         "batch": 4,
         "pages": "10–12",
-        "rows": 22,
+        "rows": 20,
         "accounts": "…4417",
         "metadata_inherited": "bank (from previous batch/page); currency (from previous batch/page); account no., bank, currency → pages 11, 12 have no header"
       }
@@ -151,7 +151,7 @@
         "group": "On upload",
         "check": "Transactions found",
         "status": "PASS",
-        "result": "120 transaction(s) recognised",
+        "result": "108 transaction(s) recognised",
         "rule": "At least one row with a date and an amount must be recognised.",
         "on_fail": "Run stops: “No transaction rows were recognised”."
       },
@@ -232,7 +232,7 @@
         "group": "Integrity",
         "check": "Running balance arithmetic (every row)",
         "status": "PASS",
-        "result": "All 120 rows reconcile",
+        "result": "All 108 rows reconcile",
         "rule": "Previous balance ± amount must equal the printed balance on every row; the balance must be readable on 80%+ of rows.",
         "on_fail": "FAILED; decision forced to REFER (possible tampering, or unverified extraction)."
       },
@@ -286,7 +286,7 @@
         "group": "Completeness",
         "check": "Enough history to score",
         "status": "PASS",
-        "result": "3 month(s), 120 transactions",
+        "result": "3 month(s), 108 transactions",
         "rule": "At least 3 months (75+ days) and 20 transactions.",
         "on_fail": "Under 3 months: decision forced to REFER. Under 20 transactions: warning."
       },
@@ -1154,255 +1154,14 @@
     },
     {
       "id": "t24",
-      "date": "2025-02-02",
+      "date": "2025-02-01",
       "value_date": "2025-02-02",
-      "account_number": "50100234567812",
-      "month": "2025-02",
-      "narration": "IMPS/P2A/502912345671/SUNIL KAPOOR/House rent FEB",
-      "debit": 28000,
-      "credit": null,
-      "balance": 18089.3,
-      "currency": "INR",
-      "counterparty": "SUNIL KAPOOR",
-      "counterparty_confidence": 0.93,
-      "counterparty_format": "IMPS · slash",
-      "channel": "IMPS",
-      "attributes": {
-        "rrn": "502912345671"
-      },
-      "level1": "DEBIT",
-      "level2": "RENT",
-      "category_group": "essential",
-      "essential": "essential",
-      "fixed_or_variable": "fixed",
-      "classification_confidence": 0.82,
-      "method": "RULE",
-      "method_reason": "Narration keyword \"RENT\"",
-      "review": {
-        "flagged": false,
-        "reasons": [],
-        "impact": null,
-        "auto_accepted_low_impact": false
-      },
-      "source_page": 3,
-      "batch": 1
-    },
-    {
-      "id": "t25",
-      "date": "2025-02-03",
-      "value_date": "2025-02-03",
-      "account_number": "50100234567812",
-      "month": "2025-02",
-      "narration": "ACH D-HOMEFIN LTD-LN0045821936-EMI FEB",
-      "debit": 38450,
-      "credit": null,
-      "balance": -20360.7,
-      "currency": "INR",
-      "counterparty": "HOMEFIN LTD",
-      "counterparty_confidence": 0.92,
-      "counterparty_format": "NACH/ACH",
-      "channel": "NACH/ACH",
-      "attributes": {
-        "loan_a_c": "LN0045821936"
-      },
-      "level1": "DEBIT",
-      "level2": "EMI",
-      "category_group": "obligation",
-      "essential": "essential",
-      "fixed_or_variable": "fixed",
-      "classification_confidence": 0.96,
-      "method": "RULE",
-      "method_reason": "Recurring debit with loan account number",
-      "review": {
-        "flagged": false,
-        "reasons": [],
-        "impact": null,
-        "auto_accepted_low_impact": false
-      },
-      "source_page": 3,
-      "batch": 1
-    },
-    {
-      "id": "t26",
-      "date": "2025-02-03",
-      "value_date": "2025-02-03",
-      "account_number": "50100234567812",
-      "month": "2025-02",
-      "narration": "ACH RTN-HOMEFIN LTD-LN0045821936-INSUFFICIENT FUNDS",
-      "debit": null,
-      "credit": 38450,
-      "balance": 18089.3,
-      "currency": "INR",
-      "counterparty": "HOMEFIN LTD",
-      "counterparty_confidence": 0.92,
-      "counterparty_format": "ACH return",
-      "channel": "NACH/ACH",
-      "attributes": {
-        "loan_a_c": "LN0045821936"
-      },
-      "level1": "CREDIT",
-      "level2": "REVERSAL",
-      "category_group": "credit_others",
-      "essential": null,
-      "fixed_or_variable": null,
-      "classification_confidence": 0.97,
-      "method": "RULE",
-      "method_reason": "Failed debit returned (bounce)",
-      "review": {
-        "flagged": false,
-        "reasons": [],
-        "impact": null,
-        "auto_accepted_low_impact": false
-      },
-      "source_page": 3,
-      "batch": 1
-    },
-    {
-      "id": "t27",
-      "date": "2025-02-04",
-      "value_date": "2025-02-04",
-      "account_number": "50100234567812",
-      "month": "2025-02",
-      "narration": "NACH RTN CHGS-LN0045821936 INCL GST",
-      "debit": 590,
-      "credit": null,
-      "balance": 17499.3,
-      "currency": "INR",
-      "counterparty": "MERIDIAN BANK",
-      "counterparty_confidence": 0.9,
-      "counterparty_format": "Bank-generated (return charge)",
-      "channel": "NACH/ACH",
-      "attributes": {
-        "loan_a_c": "LN0045821936"
-      },
-      "level1": "DEBIT",
-      "level2": "BANK_CHARGES",
-      "category_group": "fees",
-      "essential": null,
-      "fixed_or_variable": "variable",
-      "classification_confidence": 0.97,
-      "method": "RULE",
-      "method_reason": "Bounce / return charge",
-      "review": {
-        "flagged": false,
-        "reasons": [],
-        "impact": null,
-        "auto_accepted_low_impact": false
-      },
-      "source_page": 3,
-      "batch": 1
-    },
-    {
-      "id": "t28",
-      "date": "2025-02-05",
-      "value_date": "2025-02-05",
-      "account_number": "50100234567812",
-      "month": "2025-02",
-      "narration": "ACH D-AUTOFIN BANK-LN7781200453-CAR LOAN EMI",
-      "debit": 14200,
-      "credit": null,
-      "balance": 3299.3,
-      "currency": "INR",
-      "counterparty": "AUTOFIN BANK",
-      "counterparty_confidence": 0.92,
-      "counterparty_format": "NACH/ACH",
-      "channel": "NACH/ACH",
-      "attributes": {
-        "loan_a_c": "LN7781200453"
-      },
-      "level1": "DEBIT",
-      "level2": "EMI",
-      "category_group": "obligation",
-      "essential": "essential",
-      "fixed_or_variable": "fixed",
-      "classification_confidence": 0.96,
-      "method": "RULE",
-      "method_reason": "Recurring debit with loan account number",
-      "review": {
-        "flagged": false,
-        "reasons": [],
-        "impact": null,
-        "auto_accepted_low_impact": false
-      },
-      "source_page": 3,
-      "batch": 1
-    },
-    {
-      "id": "t29",
-      "date": "2025-02-05",
-      "value_date": "2025-02-05",
-      "account_number": "50100234567812",
-      "month": "2025-02",
-      "narration": "ACH D-INDIAFIRST MF-SIP FOLIO 4471223",
-      "debit": 10000,
-      "credit": null,
-      "balance": -6700.7,
-      "currency": "INR",
-      "counterparty": "INDIAFIRST MF",
-      "counterparty_confidence": 0.92,
-      "counterparty_format": "NACH/ACH",
-      "channel": "NACH/ACH",
-      "attributes": {},
-      "level1": "DEBIT",
-      "level2": "INVESTMENT",
-      "category_group": "savings",
-      "essential": null,
-      "fixed_or_variable": "fixed",
-      "classification_confidence": 0.82,
-      "method": "RULE",
-      "method_reason": "Narration keyword \"SIP\"",
-      "review": {
-        "flagged": false,
-        "reasons": [],
-        "impact": null,
-        "auto_accepted_low_impact": false
-      },
-      "source_page": 3,
-      "batch": 1
-    },
-    {
-      "id": "t30",
-      "date": "2025-02-05",
-      "value_date": "2025-02-05",
-      "account_number": "50100234567812",
-      "month": "2025-02",
-      "narration": "ACH D-SECURELIFE INSURANCE-POLICY 88231",
-      "debit": 6200,
-      "credit": null,
-      "balance": -12900.7,
-      "currency": "INR",
-      "counterparty": "SECURELIFE INSURANCE",
-      "counterparty_confidence": 0.92,
-      "counterparty_format": "NACH/ACH",
-      "channel": "NACH/ACH",
-      "attributes": {},
-      "level1": "DEBIT",
-      "level2": "INSURANCE",
-      "category_group": "essential",
-      "essential": "essential",
-      "fixed_or_variable": "fixed",
-      "classification_confidence": 0.9,
-      "method": "RULE",
-      "method_reason": "Narration keyword \"INSURANCE\"",
-      "review": {
-        "flagged": false,
-        "reasons": [],
-        "impact": null,
-        "auto_accepted_low_impact": false
-      },
-      "source_page": 3,
-      "batch": 1
-    },
-    {
-      "id": "t31",
-      "date": "2025-02-06",
-      "value_date": "2025-02-07",
       "account_number": "50100234567812",
       "month": "2025-02",
       "narration": "NEFT CR-CITI0000002-ACME TECHNOLOGIES PVT LTD-SALARY FEB 2025",
       "debit": null,
       "credit": 142500,
-      "balance": 129599.3,
+      "balance": 188589.3,
       "currency": "INR",
       "counterparty": "ACME TECHNOLOGIES PVT LTD",
       "counterparty_confidence": 0.93,
@@ -1430,7 +1189,178 @@
       "batch": 1
     },
     {
-      "id": "t32",
+      "id": "t25",
+      "date": "2025-02-02",
+      "value_date": "2025-02-02",
+      "account_number": "50100234567812",
+      "month": "2025-02",
+      "narration": "IMPS/P2A/502912345671/SUNIL KAPOOR/House rent FEB",
+      "debit": 28000,
+      "credit": null,
+      "balance": 160589.3,
+      "currency": "INR",
+      "counterparty": "SUNIL KAPOOR",
+      "counterparty_confidence": 0.93,
+      "counterparty_format": "IMPS · slash",
+      "channel": "IMPS",
+      "attributes": {
+        "rrn": "502912345671"
+      },
+      "level1": "DEBIT",
+      "level2": "RENT",
+      "category_group": "essential",
+      "essential": "essential",
+      "fixed_or_variable": "fixed",
+      "classification_confidence": 0.82,
+      "method": "RULE",
+      "method_reason": "Narration keyword \"RENT\"",
+      "review": {
+        "flagged": false,
+        "reasons": [],
+        "impact": null,
+        "auto_accepted_low_impact": false
+      },
+      "source_page": 3,
+      "batch": 1
+    },
+    {
+      "id": "t26",
+      "date": "2025-02-03",
+      "value_date": "2025-02-03",
+      "account_number": "50100234567812",
+      "month": "2025-02",
+      "narration": "ACH D-HOMEFIN LTD-LN0045821936-EMI FEB",
+      "debit": 38450,
+      "credit": null,
+      "balance": 122139.3,
+      "currency": "INR",
+      "counterparty": "HOMEFIN LTD",
+      "counterparty_confidence": 0.92,
+      "counterparty_format": "NACH/ACH",
+      "channel": "NACH/ACH",
+      "attributes": {
+        "loan_a_c": "LN0045821936"
+      },
+      "level1": "DEBIT",
+      "level2": "EMI",
+      "category_group": "obligation",
+      "essential": "essential",
+      "fixed_or_variable": "fixed",
+      "classification_confidence": 0.96,
+      "method": "RULE",
+      "method_reason": "Recurring debit with loan account number",
+      "review": {
+        "flagged": false,
+        "reasons": [],
+        "impact": null,
+        "auto_accepted_low_impact": false
+      },
+      "source_page": 3,
+      "batch": 1
+    },
+    {
+      "id": "t27",
+      "date": "2025-02-05",
+      "value_date": "2025-02-05",
+      "account_number": "50100234567812",
+      "month": "2025-02",
+      "narration": "ACH D-AUTOFIN BANK-LN7781200453-CAR LOAN EMI",
+      "debit": 14200,
+      "credit": null,
+      "balance": 107939.3,
+      "currency": "INR",
+      "counterparty": "AUTOFIN BANK",
+      "counterparty_confidence": 0.92,
+      "counterparty_format": "NACH/ACH",
+      "channel": "NACH/ACH",
+      "attributes": {
+        "loan_a_c": "LN7781200453"
+      },
+      "level1": "DEBIT",
+      "level2": "EMI",
+      "category_group": "obligation",
+      "essential": "essential",
+      "fixed_or_variable": "fixed",
+      "classification_confidence": 0.96,
+      "method": "RULE",
+      "method_reason": "Recurring debit with loan account number",
+      "review": {
+        "flagged": false,
+        "reasons": [],
+        "impact": null,
+        "auto_accepted_low_impact": false
+      },
+      "source_page": 3,
+      "batch": 1
+    },
+    {
+      "id": "t28",
+      "date": "2025-02-05",
+      "value_date": "2025-02-05",
+      "account_number": "50100234567812",
+      "month": "2025-02",
+      "narration": "ACH D-INDIAFIRST MF-SIP FOLIO 4471223",
+      "debit": 10000,
+      "credit": null,
+      "balance": 97939.3,
+      "currency": "INR",
+      "counterparty": "INDIAFIRST MF",
+      "counterparty_confidence": 0.92,
+      "counterparty_format": "NACH/ACH",
+      "channel": "NACH/ACH",
+      "attributes": {},
+      "level1": "DEBIT",
+      "level2": "INVESTMENT",
+      "category_group": "savings",
+      "essential": null,
+      "fixed_or_variable": "fixed",
+      "classification_confidence": 0.82,
+      "method": "RULE",
+      "method_reason": "Narration keyword \"SIP\"",
+      "review": {
+        "flagged": false,
+        "reasons": [],
+        "impact": null,
+        "auto_accepted_low_impact": false
+      },
+      "source_page": 3,
+      "batch": 1
+    },
+    {
+      "id": "t29",
+      "date": "2025-02-05",
+      "value_date": "2025-02-05",
+      "account_number": "50100234567812",
+      "month": "2025-02",
+      "narration": "ACH D-SECURELIFE INSURANCE-POLICY 88231",
+      "debit": 6200,
+      "credit": null,
+      "balance": 91739.3,
+      "currency": "INR",
+      "counterparty": "SECURELIFE INSURANCE",
+      "counterparty_confidence": 0.92,
+      "counterparty_format": "NACH/ACH",
+      "channel": "NACH/ACH",
+      "attributes": {},
+      "level1": "DEBIT",
+      "level2": "INSURANCE",
+      "category_group": "essential",
+      "essential": "essential",
+      "fixed_or_variable": "fixed",
+      "classification_confidence": 0.9,
+      "method": "RULE",
+      "method_reason": "Narration keyword \"INSURANCE\"",
+      "review": {
+        "flagged": false,
+        "reasons": [],
+        "impact": null,
+        "auto_accepted_low_impact": false
+      },
+      "source_page": 3,
+      "batch": 1
+    },
+    {
+      "id": "t30",
       "date": "2025-02-06",
       "value_date": "2025-02-06",
       "account_number": "50100234567812",
@@ -1438,7 +1368,7 @@
       "narration": "BBPS/ELECTRICITY/NORTHGRID POWER/CA 1029384",
       "debit": 2980,
       "credit": null,
-      "balance": 126619.3,
+      "balance": 88759.3,
       "currency": "INR",
       "counterparty": "NORTHGRID POWER",
       "counterparty_confidence": 0.92,
@@ -1463,7 +1393,7 @@
       "batch": 1
     },
     {
-      "id": "t33",
+      "id": "t31",
       "date": "2025-02-07",
       "value_date": "2025-02-07",
       "account_number": "50100234567812",
@@ -1471,7 +1401,7 @@
       "narration": "UPI/502712349876/FRESHBASKET MART/freshbasket@okaxis/Groceries",
       "debit": 3105,
       "credit": null,
-      "balance": 123514.3,
+      "balance": 85654.3,
       "currency": "INR",
       "counterparty": "FRESHBASKET MART",
       "counterparty_confidence": 0.95,
@@ -1499,42 +1429,7 @@
       "batch": 1
     },
     {
-      "id": "t34",
-      "date": "2025-02-08",
-      "value_date": "2025-02-08",
-      "account_number": "50100234567812",
-      "month": "2025-02",
-      "narration": "ACH D-HOMEFIN LTD-LN0045821936-EMI FEB REPRESENT",
-      "debit": 38450,
-      "credit": null,
-      "balance": 85064.3,
-      "currency": "INR",
-      "counterparty": "HOMEFIN LTD",
-      "counterparty_confidence": 0.92,
-      "counterparty_format": "NACH/ACH",
-      "channel": "NACH/ACH",
-      "attributes": {
-        "loan_a_c": "LN0045821936"
-      },
-      "level1": "DEBIT",
-      "level2": "EMI",
-      "category_group": "obligation",
-      "essential": "essential",
-      "fixed_or_variable": "fixed",
-      "classification_confidence": 0.96,
-      "method": "RULE",
-      "method_reason": "Recurring debit with loan account number",
-      "review": {
-        "flagged": false,
-        "reasons": [],
-        "impact": null,
-        "auto_accepted_low_impact": false
-      },
-      "source_page": 3,
-      "batch": 1
-    },
-    {
-      "id": "t35",
+      "id": "t32",
       "date": "2025-02-08",
       "value_date": "2025-02-08",
       "account_number": "50100234567812",
@@ -1542,7 +1437,7 @@
       "narration": "IMPS/P2A/502812340001/ROHAN MEHTA/A/C XX4321/Household transfer",
       "debit": 25000,
       "credit": null,
-      "balance": 60064.3,
+      "balance": 60654.3,
       "currency": "INR",
       "counterparty": "ROHAN MEHTA",
       "counterparty_confidence": 0.93,
@@ -1570,44 +1465,7 @@
       "batch": 1
     },
     {
-      "id": "t36",
-      "date": "2025-02-10",
-      "value_date": "2025-02-11",
-      "account_number": "50100234567812",
-      "month": "2025-02",
-      "narration": "NEFT CR-HDFC0000999-QUICKCASH FINTECH-LOAN DISB LN-QC88123",
-      "debit": null,
-      "credit": 50000,
-      "balance": 110064.3,
-      "currency": "INR",
-      "counterparty": "QUICKCASH FINTECH",
-      "counterparty_confidence": 0.93,
-      "counterparty_format": "NEFT/RTGS · hyphen",
-      "channel": "NEFT",
-      "attributes": {
-        "loan_a_c": "LN-QC88123",
-        "ifsc": "HDFC0000999",
-        "cpty_bank": "HDFC Bank"
-      },
-      "level1": "CREDIT",
-      "level2": "LOAN_DISBURSAL",
-      "category_group": "credit_others",
-      "essential": null,
-      "fixed_or_variable": null,
-      "classification_confidence": 0.95,
-      "method": "RULE",
-      "method_reason": "Loan disbursal — not income",
-      "review": {
-        "flagged": false,
-        "reasons": [],
-        "impact": null,
-        "auto_accepted_low_impact": false
-      },
-      "source_page": 4,
-      "batch": 2
-    },
-    {
-      "id": "t37",
+      "id": "t33",
       "date": "2025-02-11",
       "value_date": "2025-02-11",
       "account_number": "50100234567812",
@@ -1615,7 +1473,7 @@
       "narration": "IMPS/P2A/504112340077/NEHA GUPTA/Concert tickets",
       "debit": null,
       "credit": 3500,
-      "balance": 113564.3,
+      "balance": 64154.3,
       "currency": "INR",
       "counterparty": "NEHA GUPTA",
       "counterparty_confidence": 0.93,
@@ -1638,11 +1496,11 @@
         "impact": null,
         "auto_accepted_low_impact": false
       },
-      "source_page": 4,
-      "batch": 2
+      "source_page": 3,
+      "batch": 1
     },
     {
-      "id": "t38",
+      "id": "t34",
       "date": "2025-02-12",
       "value_date": "2025-02-12",
       "account_number": "50100234567812",
@@ -1650,7 +1508,7 @@
       "narration": "POS/XX8832/CITY FUELS SECTOR 29",
       "debit": 2950,
       "credit": null,
-      "balance": 110614.3,
+      "balance": 61204.3,
       "currency": "INR",
       "counterparty": "CITY FUELS",
       "counterparty_confidence": 0.9,
@@ -1677,7 +1535,7 @@
       "batch": 2
     },
     {
-      "id": "t39",
+      "id": "t35",
       "date": "2025-02-13",
       "value_date": "2025-02-13",
       "account_number": "50100234567812",
@@ -1685,7 +1543,7 @@
       "narration": "UPI/504312340088/MR K/q8x2@ybl/",
       "debit": 700,
       "credit": null,
-      "balance": 109914.3,
+      "balance": 60504.3,
       "currency": "INR",
       "counterparty": "MR K",
       "counterparty_confidence": 0.45,
@@ -1716,7 +1574,7 @@
       "batch": 2
     },
     {
-      "id": "t40",
+      "id": "t36",
       "date": "2025-02-14",
       "value_date": "2025-02-15",
       "account_number": "50100234567812",
@@ -1724,7 +1582,7 @@
       "narration": "NEFT CR-ICIC0000104-STRIPE PAYMENTS INDIA-PAYOUT po_1QFEB",
       "debit": null,
       "credit": 22650,
-      "balance": 132564.3,
+      "balance": 83154.3,
       "currency": "INR",
       "counterparty": "STRIPE PAYMENTS INDIA",
       "counterparty_confidence": 0.93,
@@ -1753,7 +1611,7 @@
       "batch": 2
     },
     {
-      "id": "t41",
+      "id": "t37",
       "date": "2025-02-15",
       "value_date": "2025-02-15",
       "account_number": "50100234567812",
@@ -1761,7 +1619,7 @@
       "narration": "CARD/XX8832/STREAMFLIX SUBSCRIPTION",
       "debit": 649,
       "credit": null,
-      "balance": 131915.3,
+      "balance": 82505.3,
       "currency": "INR",
       "counterparty": "STREAMFLIX SUBSCRIPTION",
       "counterparty_confidence": 0.9,
@@ -1788,7 +1646,7 @@
       "batch": 2
     },
     {
-      "id": "t42",
+      "id": "t38",
       "date": "2025-02-16",
       "value_date": "2025-02-16",
       "account_number": "50100234567812",
@@ -1796,7 +1654,7 @@
       "narration": "BBPS/BROADBAND/SKYNET FIBER/AC 77812",
       "debit": 1179,
       "credit": null,
-      "balance": 130736.3,
+      "balance": 81326.3,
       "currency": "INR",
       "counterparty": "SKYNET FIBER",
       "counterparty_confidence": 0.92,
@@ -1821,7 +1679,7 @@
       "batch": 2
     },
     {
-      "id": "t43",
+      "id": "t39",
       "date": "2025-02-18",
       "value_date": "2025-02-18",
       "account_number": "50100234567812",
@@ -1829,7 +1687,7 @@
       "narration": "UPI/504812340099/SPICE ROUTE CAFE/spiceroute@ybl/Dinner",
       "debit": 2280,
       "credit": null,
-      "balance": 128456.3,
+      "balance": 79046.3,
       "currency": "INR",
       "counterparty": "SPICE ROUTE CAFE",
       "counterparty_confidence": 0.95,
@@ -1857,7 +1715,7 @@
       "batch": 2
     },
     {
-      "id": "t44",
+      "id": "t40",
       "date": "2025-02-21",
       "value_date": "2025-02-21",
       "account_number": "50100234567812",
@@ -1865,7 +1723,7 @@
       "narration": "ATM WDL/S1AN2231/SECTOR 29 GURUGRAM",
       "debit": 6000,
       "credit": null,
-      "balance": 122456.3,
+      "balance": 73046.3,
       "currency": "INR",
       "counterparty": "Self (ATM cash)",
       "counterparty_confidence": 0.9,
@@ -1890,7 +1748,7 @@
       "batch": 2
     },
     {
-      "id": "t45",
+      "id": "t41",
       "date": "2025-02-24",
       "value_date": "2025-02-24",
       "account_number": "50100234567812",
@@ -1898,7 +1756,7 @@
       "narration": "UPI/502412340066/FRESHBASKET MART/freshbasket@okaxis/Groceries",
       "debit": 2960,
       "credit": null,
-      "balance": 119496.3,
+      "balance": 70086.3,
       "currency": "INR",
       "counterparty": "FRESHBASKET MART",
       "counterparty_confidence": 0.95,
@@ -1926,7 +1784,7 @@
       "batch": 2
     },
     {
-      "id": "t46",
+      "id": "t42",
       "date": "2025-02-25",
       "value_date": "2025-02-25",
       "account_number": "50100234567812",
@@ -1934,7 +1792,7 @@
       "narration": "CC PAYMENT/MERIDIAN CARD XX4417/AUTOPAY",
       "debit": 26310,
       "credit": null,
-      "balance": 93186.3,
+      "balance": 43776.3,
       "currency": "INR",
       "counterparty": "Own card account",
       "counterparty_confidence": 0.9,
@@ -1961,7 +1819,7 @@
       "batch": 2
     },
     {
-      "id": "t47",
+      "id": "t43",
       "date": "2025-02-27",
       "value_date": "2025-02-27",
       "account_number": "50100234567812",
@@ -1969,7 +1827,7 @@
       "narration": "DEBIT CARD ANNUAL FEE XX8832",
       "debit": 590,
       "credit": null,
-      "balance": 92596.3,
+      "balance": 43186.3,
       "currency": "INR",
       "counterparty": "MERIDIAN BANK",
       "counterparty_confidence": 0.9,
@@ -1996,7 +1854,7 @@
       "batch": 2
     },
     {
-      "id": "t48",
+      "id": "t44",
       "date": "2025-03-01",
       "value_date": "2025-03-02",
       "account_number": "50100234567812",
@@ -2004,7 +1862,7 @@
       "narration": "NEFT CR-CITI0000002-ACME TECHNOLOGIES PVT LTD-SALARY MAR 2025",
       "debit": null,
       "credit": 148200,
-      "balance": 240796.3,
+      "balance": 191386.3,
       "currency": "INR",
       "counterparty": "ACME TECHNOLOGIES PVT LTD",
       "counterparty_confidence": 0.93,
@@ -2032,7 +1890,7 @@
       "batch": 2
     },
     {
-      "id": "t49",
+      "id": "t45",
       "date": "2025-03-02",
       "value_date": "2025-03-02",
       "account_number": "50100234567812",
@@ -2040,7 +1898,7 @@
       "narration": "IMPS/P2A/503912345671/SUNIL KAPOOR/House rent MAR",
       "debit": 28000,
       "credit": null,
-      "balance": 212796.3,
+      "balance": 163386.3,
       "currency": "INR",
       "counterparty": "SUNIL KAPOOR",
       "counterparty_confidence": 0.93,
@@ -2067,7 +1925,7 @@
       "batch": 2
     },
     {
-      "id": "t50",
+      "id": "t46",
       "date": "2025-03-03",
       "value_date": "2025-03-03",
       "account_number": "50100234567812",
@@ -2075,7 +1933,7 @@
       "narration": "ACH D-HOMEFIN LTD-LN0045821936-EMI MAR",
       "debit": 38450,
       "credit": null,
-      "balance": 174346.3,
+      "balance": 124936.3,
       "currency": "INR",
       "counterparty": "HOMEFIN LTD",
       "counterparty_confidence": 0.92,
@@ -2102,7 +1960,7 @@
       "batch": 2
     },
     {
-      "id": "t51",
+      "id": "t47",
       "date": "2025-03-05",
       "value_date": "2025-03-05",
       "account_number": "50100234567812",
@@ -2110,7 +1968,7 @@
       "narration": "ACH D-AUTOFIN BANK-LN7781200453-CAR LOAN EMI",
       "debit": 14200,
       "credit": null,
-      "balance": 160146.3,
+      "balance": 110736.3,
       "currency": "INR",
       "counterparty": "AUTOFIN BANK",
       "counterparty_confidence": 0.92,
@@ -2137,7 +1995,7 @@
       "batch": 2
     },
     {
-      "id": "t52",
+      "id": "t48",
       "date": "2025-03-05",
       "value_date": "2025-03-05",
       "account_number": "50100234567812",
@@ -2145,7 +2003,7 @@
       "narration": "ACH D-INDIAFIRST MF-SIP FOLIO 4471223",
       "debit": 10000,
       "credit": null,
-      "balance": 150146.3,
+      "balance": 100736.3,
       "currency": "INR",
       "counterparty": "INDIAFIRST MF",
       "counterparty_confidence": 0.92,
@@ -2170,42 +2028,7 @@
       "batch": 2
     },
     {
-      "id": "t53",
-      "date": "2025-03-05",
-      "value_date": "2025-03-05",
-      "account_number": "50100234567812",
-      "month": "2025-03",
-      "narration": "ACH D-QUICKCASH FINTECH-LN-QC88123-EMI",
-      "debit": 9100,
-      "credit": null,
-      "balance": 141046.3,
-      "currency": "INR",
-      "counterparty": "QUICKCASH FINTECH",
-      "counterparty_confidence": 0.92,
-      "counterparty_format": "NACH/ACH",
-      "channel": "NACH/ACH",
-      "attributes": {
-        "loan_a_c": "LN-QC88123"
-      },
-      "level1": "DEBIT",
-      "level2": "EMI",
-      "category_group": "obligation",
-      "essential": "essential",
-      "fixed_or_variable": "fixed",
-      "classification_confidence": 0.96,
-      "method": "RULE",
-      "method_reason": "Recurring debit with loan account number",
-      "review": {
-        "flagged": false,
-        "reasons": [],
-        "impact": null,
-        "auto_accepted_low_impact": false
-      },
-      "source_page": 5,
-      "batch": 2
-    },
-    {
-      "id": "t54",
+      "id": "t49",
       "date": "2025-03-06",
       "value_date": "2025-03-06",
       "account_number": "50100234567812",
@@ -2213,7 +2036,7 @@
       "narration": "BBPS/ELECTRICITY/NORTHGRID POWER/CA 1029384",
       "debit": 2720,
       "credit": null,
-      "balance": 138326.3,
+      "balance": 98016.3,
       "currency": "INR",
       "counterparty": "NORTHGRID POWER",
       "counterparty_confidence": 0.92,
@@ -2238,7 +2061,7 @@
       "batch": 2
     },
     {
-      "id": "t55",
+      "id": "t50",
       "date": "2025-03-07",
       "value_date": "2025-03-07",
       "account_number": "50100234567812",
@@ -2246,7 +2069,7 @@
       "narration": "UPI/503712349876/FRESHBASKET MART/freshbasket@okaxis/Groceries",
       "debit": 3380,
       "credit": null,
-      "balance": 134946.3,
+      "balance": 94636.3,
       "currency": "INR",
       "counterparty": "FRESHBASKET MART",
       "counterparty_confidence": 0.95,
@@ -2274,7 +2097,7 @@
       "batch": 2
     },
     {
-      "id": "t56",
+      "id": "t51",
       "date": "2025-03-08",
       "value_date": "2025-03-08",
       "account_number": "50100234567812",
@@ -2282,7 +2105,7 @@
       "narration": "IMPS/P2A/503812340001/ROHAN MEHTA/A/C XX4321/Household transfer",
       "debit": 25000,
       "credit": null,
-      "balance": 109946.3,
+      "balance": 69636.3,
       "currency": "INR",
       "counterparty": "ROHAN MEHTA",
       "counterparty_confidence": 0.93,
@@ -2310,73 +2133,7 @@
       "batch": 2
     },
     {
-      "id": "t57",
-      "date": "2025-03-10",
-      "value_date": "2025-03-10",
-      "account_number": "50100234567812",
-      "month": "2025-03",
-      "narration": "CASH DEP/BRANCH SECTOR 14/SELF",
-      "debit": null,
-      "credit": 49000,
-      "balance": 158946.3,
-      "currency": "INR",
-      "counterparty": "Self (cash deposit)",
-      "counterparty_confidence": 0.88,
-      "counterparty_format": "Cash deposit",
-      "channel": "CASH",
-      "attributes": {},
-      "level1": "CREDIT",
-      "level2": "CASH_DEPOSIT",
-      "category_group": "credit_others",
-      "essential": null,
-      "fixed_or_variable": null,
-      "classification_confidence": 0.9,
-      "method": "RULE",
-      "method_reason": "Narration keyword \"CASH DEP\"",
-      "review": {
-        "flagged": false,
-        "reasons": [],
-        "impact": null,
-        "auto_accepted_low_impact": false
-      },
-      "source_page": 5,
-      "batch": 2
-    },
-    {
-      "id": "t58",
-      "date": "2025-03-12",
-      "value_date": "2025-03-12",
-      "account_number": "50100234567812",
-      "month": "2025-03",
-      "narration": "CASH DEP/BRANCH SECTOR 14/SELF",
-      "debit": null,
-      "credit": 48500,
-      "balance": 207446.3,
-      "currency": "INR",
-      "counterparty": "Self (cash deposit)",
-      "counterparty_confidence": 0.88,
-      "counterparty_format": "Cash deposit",
-      "channel": "CASH",
-      "attributes": {},
-      "level1": "CREDIT",
-      "level2": "CASH_DEPOSIT",
-      "category_group": "credit_others",
-      "essential": null,
-      "fixed_or_variable": null,
-      "classification_confidence": 0.9,
-      "method": "RULE",
-      "method_reason": "Narration keyword \"CASH DEP\"",
-      "review": {
-        "flagged": false,
-        "reasons": [],
-        "impact": null,
-        "auto_accepted_low_impact": false
-      },
-      "source_page": 5,
-      "batch": 2
-    },
-    {
-      "id": "t59",
+      "id": "t52",
       "date": "2025-03-14",
       "value_date": "2025-03-15",
       "account_number": "50100234567812",
@@ -2384,7 +2141,7 @@
       "narration": "NEFT CR-ICIC0000104-STRIPE PAYMENTS INDIA-PAYOUT po_1QMAR",
       "debit": null,
       "credit": 25900,
-      "balance": 233346.3,
+      "balance": 95536.3,
       "currency": "INR",
       "counterparty": "STRIPE PAYMENTS INDIA",
       "counterparty_confidence": 0.93,
@@ -2413,40 +2170,7 @@
       "batch": 2
     },
     {
-      "id": "t60",
-      "date": "2025-03-14",
-      "value_date": "2025-03-14",
-      "account_number": "50100234567812",
-      "month": "2025-03",
-      "narration": "CASH DEP/BRANCH SECTOR 14/SELF",
-      "debit": null,
-      "credit": 49500,
-      "balance": 282846.3,
-      "currency": "INR",
-      "counterparty": "Self (cash deposit)",
-      "counterparty_confidence": 0.88,
-      "counterparty_format": "Cash deposit",
-      "channel": "CASH",
-      "attributes": {},
-      "level1": "CREDIT",
-      "level2": "CASH_DEPOSIT",
-      "category_group": "credit_others",
-      "essential": null,
-      "fixed_or_variable": null,
-      "classification_confidence": 0.9,
-      "method": "RULE",
-      "method_reason": "Narration keyword \"CASH DEP\"",
-      "review": {
-        "flagged": false,
-        "reasons": [],
-        "impact": null,
-        "auto_accepted_low_impact": false
-      },
-      "source_page": 5,
-      "batch": 2
-    },
-    {
-      "id": "t61",
+      "id": "t53",
       "date": "2025-03-15",
       "value_date": "2025-03-15",
       "account_number": "50100234567812",
@@ -2454,7 +2178,7 @@
       "narration": "CARD/XX8832/STREAMFLIX SUBSCRIPTION",
       "debit": 649,
       "credit": null,
-      "balance": 282197.3,
+      "balance": 94887.3,
       "currency": "INR",
       "counterparty": "STREAMFLIX SUBSCRIPTION",
       "counterparty_confidence": 0.9,
@@ -2477,11 +2201,11 @@
         "impact": null,
         "auto_accepted_low_impact": false
       },
-      "source_page": 6,
+      "source_page": 5,
       "batch": 2
     },
     {
-      "id": "t62",
+      "id": "t54",
       "date": "2025-03-16",
       "value_date": "2025-03-16",
       "account_number": "50100234567812",
@@ -2489,7 +2213,7 @@
       "narration": "BBPS/BROADBAND/SKYNET FIBER/AC 77812",
       "debit": 1179,
       "credit": null,
-      "balance": 281018.3,
+      "balance": 93708.3,
       "currency": "INR",
       "counterparty": "SKYNET FIBER",
       "counterparty_confidence": 0.92,
@@ -2514,44 +2238,7 @@
       "batch": 2
     },
     {
-      "id": "t63",
-      "date": "2025-03-17",
-      "value_date": "2025-03-17",
-      "account_number": "50100234567812",
-      "month": "2025-03",
-      "narration": "IMPS/P2A/507612340111/VIKRAM TRADERS/Advance",
-      "debit": null,
-      "credit": 75000,
-      "balance": 356018.3,
-      "currency": "INR",
-      "counterparty": "VIKRAM TRADERS",
-      "counterparty_confidence": 0.93,
-      "counterparty_format": "IMPS · slash",
-      "channel": "IMPS",
-      "attributes": {
-        "rrn": "507612340111"
-      },
-      "level1": "CREDIT",
-      "level2": "OTHER_CREDIT",
-      "category_group": "credit_others",
-      "essential": null,
-      "fixed_or_variable": null,
-      "classification_confidence": 0.35,
-      "method": "RULE",
-      "method_reason": "No rule matched",
-      "review": {
-        "flagged": true,
-        "reasons": [
-          "Low classification confidence (35%)"
-        ],
-        "impact": "HIGH",
-        "auto_accepted_low_impact": false
-      },
-      "source_page": 6,
-      "batch": 2
-    },
-    {
-      "id": "t64",
+      "id": "t55",
       "date": "2025-03-17",
       "value_date": "2025-03-17",
       "account_number": "50100234567812",
@@ -2559,7 +2246,7 @@
       "narration": "UPI/507712340133/CAREWELL PHARMACY/carewell@paytm/Medicines",
       "debit": 840,
       "credit": null,
-      "balance": 355178.3,
+      "balance": 92868.3,
       "currency": "INR",
       "counterparty": "CAREWELL PHARMACY",
       "counterparty_confidence": 0.95,
@@ -2588,44 +2275,7 @@
       "batch": 2
     },
     {
-      "id": "t65",
-      "date": "2025-03-18",
-      "value_date": "2025-03-18",
-      "account_number": "50100234567812",
-      "month": "2025-03",
-      "narration": "IMPS/P2A/507712340122/VIKRAM TRADERS/Return advance",
-      "debit": 75000,
-      "credit": null,
-      "balance": 280178.3,
-      "currency": "INR",
-      "counterparty": "VIKRAM TRADERS",
-      "counterparty_confidence": 0.93,
-      "counterparty_format": "IMPS · slash",
-      "channel": "IMPS",
-      "attributes": {
-        "rrn": "507712340122"
-      },
-      "level1": "DEBIT",
-      "level2": "OTHER_DEBIT",
-      "category_group": "discretionary",
-      "essential": "discretionary",
-      "fixed_or_variable": "variable",
-      "classification_confidence": 0.35,
-      "method": "RULE",
-      "method_reason": "No rule matched",
-      "review": {
-        "flagged": true,
-        "reasons": [
-          "Low classification confidence (35%)"
-        ],
-        "impact": "HIGH",
-        "auto_accepted_low_impact": false
-      },
-      "source_page": 6,
-      "batch": 2
-    },
-    {
-      "id": "t66",
+      "id": "t56",
       "date": "2025-03-19",
       "value_date": "2025-03-19",
       "account_number": "50100234567812",
@@ -2633,7 +2283,7 @@
       "narration": "UPI/507912340144/ZOOMCAB RIDES/zoomcab@axl/Ride",
       "debit": 460,
       "credit": null,
-      "balance": 279718.3,
+      "balance": 92408.3,
       "currency": "INR",
       "counterparty": "ZOOMCAB RIDES",
       "counterparty_confidence": 0.95,
@@ -2661,7 +2311,7 @@
       "batch": 2
     },
     {
-      "id": "t67",
+      "id": "t57",
       "date": "2025-03-20",
       "value_date": "2025-03-20",
       "account_number": "50100234567812",
@@ -2669,7 +2319,7 @@
       "narration": "UPI/508012340155/ANKIT SHARMA/ankit.s@okicici/Trip share",
       "debit": null,
       "credit": 2400,
-      "balance": 282118.3,
+      "balance": 94808.3,
       "currency": "INR",
       "counterparty": "ANKIT SHARMA",
       "counterparty_confidence": 0.95,
@@ -2697,7 +2347,7 @@
       "batch": 2
     },
     {
-      "id": "t68",
+      "id": "t58",
       "date": "2025-03-22",
       "value_date": "2025-03-22",
       "account_number": "50100234567812",
@@ -2705,7 +2355,7 @@
       "narration": "POS/XX8832/SHOPKART ONLINE",
       "debit": 3299,
       "credit": null,
-      "balance": 278819.3,
+      "balance": 91509.3,
       "currency": "INR",
       "counterparty": "SHOPKART ONLINE",
       "counterparty_confidence": 0.9,
@@ -2732,7 +2382,7 @@
       "batch": 2
     },
     {
-      "id": "t69",
+      "id": "t59",
       "date": "2025-03-24",
       "value_date": "2025-03-24",
       "account_number": "50100234567812",
@@ -2740,7 +2390,7 @@
       "narration": "UPI/503412340066/FRESHBASKET MART/freshbasket@okaxis/Groceries",
       "debit": 3010,
       "credit": null,
-      "balance": 275809.3,
+      "balance": 88499.3,
       "currency": "INR",
       "counterparty": "FRESHBASKET MART",
       "counterparty_confidence": 0.95,
@@ -2768,7 +2418,7 @@
       "batch": 2
     },
     {
-      "id": "t70",
+      "id": "t60",
       "date": "2025-03-25",
       "value_date": "2025-03-25",
       "account_number": "50100234567812",
@@ -2776,7 +2426,7 @@
       "narration": "CC PAYMENT/MERIDIAN CARD XX4417/AUTOPAY",
       "debit": 24480,
       "credit": null,
-      "balance": 251329.3,
+      "balance": 64019.3,
       "currency": "INR",
       "counterparty": "Own card account",
       "counterparty_confidence": 0.9,
@@ -2803,7 +2453,7 @@
       "batch": 2
     },
     {
-      "id": "t71",
+      "id": "t61",
       "date": "2025-03-29",
       "value_date": "2025-03-29",
       "account_number": "50100234567812",
@@ -2811,7 +2461,7 @@
       "narration": "UPI/508912340166/SPICE ROUTE CAFE/spiceroute@ybl/Dinner",
       "debit": 1980,
       "credit": null,
-      "balance": 249349.3,
+      "balance": 62039.3,
       "currency": "INR",
       "counterparty": "SPICE ROUTE CAFE",
       "counterparty_confidence": 0.95,
@@ -2839,7 +2489,7 @@
       "batch": 2
     },
     {
-      "id": "t72",
+      "id": "t62",
       "date": "2025-03-31",
       "value_date": "2025-03-31",
       "account_number": "50100234567812",
@@ -2847,7 +2497,7 @@
       "narration": "SB INTEREST CREDIT Q4",
       "debit": null,
       "credit": 1184,
-      "balance": 250533.3,
+      "balance": 63223.3,
       "currency": "INR",
       "counterparty": "MERIDIAN BANK",
       "counterparty_confidence": 0.9,
@@ -2872,7 +2522,7 @@
       "batch": 2
     },
     {
-      "id": "t73",
+      "id": "t63",
       "date": "2025-01-04",
       "value_date": "2025-01-04",
       "account_number": "50100987654321",
@@ -2908,7 +2558,7 @@
       "batch": 3
     },
     {
-      "id": "t74",
+      "id": "t64",
       "date": "2025-01-08",
       "value_date": "2025-01-08",
       "account_number": "50100987654321",
@@ -2944,7 +2594,7 @@
       "batch": 3
     },
     {
-      "id": "t75",
+      "id": "t65",
       "date": "2025-01-09",
       "value_date": "2025-01-10",
       "account_number": "50100987654321",
@@ -2980,7 +2630,7 @@
       "batch": 3
     },
     {
-      "id": "t76",
+      "id": "t66",
       "date": "2025-01-10",
       "value_date": "2025-01-10",
       "account_number": "50100987654321",
@@ -3016,7 +2666,7 @@
       "batch": 3
     },
     {
-      "id": "t77",
+      "id": "t67",
       "date": "2025-01-12",
       "value_date": "2025-01-12",
       "account_number": "50100987654321",
@@ -3049,7 +2699,7 @@
       "batch": 3
     },
     {
-      "id": "t78",
+      "id": "t68",
       "date": "2025-01-15",
       "value_date": "2025-01-15",
       "account_number": "50100987654321",
@@ -3085,7 +2735,7 @@
       "batch": 3
     },
     {
-      "id": "t79",
+      "id": "t69",
       "date": "2025-01-20",
       "value_date": "2025-01-20",
       "account_number": "50100987654321",
@@ -3118,7 +2768,7 @@
       "batch": 3
     },
     {
-      "id": "t80",
+      "id": "t70",
       "date": "2025-01-26",
       "value_date": "2025-01-26",
       "account_number": "50100987654321",
@@ -3154,7 +2804,7 @@
       "batch": 3
     },
     {
-      "id": "t81",
+      "id": "t71",
       "date": "2025-02-04",
       "value_date": "2025-02-04",
       "account_number": "50100987654321",
@@ -3190,7 +2840,7 @@
       "batch": 3
     },
     {
-      "id": "t82",
+      "id": "t72",
       "date": "2025-02-08",
       "value_date": "2025-02-08",
       "account_number": "50100987654321",
@@ -3226,7 +2876,7 @@
       "batch": 3
     },
     {
-      "id": "t83",
+      "id": "t73",
       "date": "2025-02-09",
       "value_date": "2025-02-10",
       "account_number": "50100987654321",
@@ -3262,7 +2912,7 @@
       "batch": 3
     },
     {
-      "id": "t84",
+      "id": "t74",
       "date": "2025-02-10",
       "value_date": "2025-02-10",
       "account_number": "50100987654321",
@@ -3298,7 +2948,7 @@
       "batch": 3
     },
     {
-      "id": "t85",
+      "id": "t75",
       "date": "2025-02-12",
       "value_date": "2025-02-12",
       "account_number": "50100987654321",
@@ -3331,7 +2981,7 @@
       "batch": 3
     },
     {
-      "id": "t86",
+      "id": "t76",
       "date": "2025-02-15",
       "value_date": "2025-02-15",
       "account_number": "50100987654321",
@@ -3367,7 +3017,7 @@
       "batch": 3
     },
     {
-      "id": "t87",
+      "id": "t77",
       "date": "2025-02-20",
       "value_date": "2025-02-20",
       "account_number": "50100987654321",
@@ -3400,7 +3050,7 @@
       "batch": 3
     },
     {
-      "id": "t88",
+      "id": "t78",
       "date": "2025-02-26",
       "value_date": "2025-02-26",
       "account_number": "50100987654321",
@@ -3436,7 +3086,7 @@
       "batch": 3
     },
     {
-      "id": "t89",
+      "id": "t79",
       "date": "2025-03-04",
       "value_date": "2025-03-04",
       "account_number": "50100987654321",
@@ -3472,7 +3122,7 @@
       "batch": 3
     },
     {
-      "id": "t90",
+      "id": "t80",
       "date": "2025-03-08",
       "value_date": "2025-03-08",
       "account_number": "50100987654321",
@@ -3508,7 +3158,7 @@
       "batch": 3
     },
     {
-      "id": "t91",
+      "id": "t81",
       "date": "2025-03-09",
       "value_date": "2025-03-10",
       "account_number": "50100987654321",
@@ -3544,7 +3194,7 @@
       "batch": 3
     },
     {
-      "id": "t92",
+      "id": "t82",
       "date": "2025-03-10",
       "value_date": "2025-03-10",
       "account_number": "50100987654321",
@@ -3580,7 +3230,7 @@
       "batch": 3
     },
     {
-      "id": "t93",
+      "id": "t83",
       "date": "2025-03-12",
       "value_date": "2025-03-12",
       "account_number": "50100987654321",
@@ -3613,7 +3263,7 @@
       "batch": 3
     },
     {
-      "id": "t94",
+      "id": "t84",
       "date": "2025-03-15",
       "value_date": "2025-03-15",
       "account_number": "50100987654321",
@@ -3649,7 +3299,7 @@
       "batch": 3
     },
     {
-      "id": "t95",
+      "id": "t85",
       "date": "2025-03-20",
       "value_date": "2025-03-20",
       "account_number": "50100987654321",
@@ -3682,7 +3332,7 @@
       "batch": 3
     },
     {
-      "id": "t96",
+      "id": "t86",
       "date": "2025-03-26",
       "value_date": "2025-03-26",
       "account_number": "50100987654321",
@@ -3718,7 +3368,7 @@
       "batch": 3
     },
     {
-      "id": "t97",
+      "id": "t87",
       "date": "2025-03-28",
       "value_date": "2025-03-28",
       "account_number": "50100987654321",
@@ -3754,7 +3404,7 @@
       "batch": 3
     },
     {
-      "id": "t98",
+      "id": "t88",
       "date": "2025-01-04",
       "value_date": "2025-01-04",
       "account_number": "XXXX XXXX XXXX 4417",
@@ -3789,7 +3439,7 @@
       "batch": 4
     },
     {
-      "id": "t99",
+      "id": "t89",
       "date": "2025-01-09",
       "value_date": "2025-01-09",
       "account_number": "XXXX XXXX XXXX 4417",
@@ -3827,7 +3477,7 @@
       "batch": 4
     },
     {
-      "id": "t100",
+      "id": "t90",
       "date": "2025-01-10",
       "value_date": "2025-01-10",
       "account_number": "XXXX XXXX XXXX 4417",
@@ -3860,7 +3510,7 @@
       "batch": 4
     },
     {
-      "id": "t101",
+      "id": "t91",
       "date": "2025-01-14",
       "value_date": "2025-01-14",
       "account_number": "XXXX XXXX XXXX 4417",
@@ -3893,7 +3543,7 @@
       "batch": 4
     },
     {
-      "id": "t102",
+      "id": "t92",
       "date": "2025-01-19",
       "value_date": "2025-01-19",
       "account_number": "XXXX XXXX XXXX 4417",
@@ -3926,7 +3576,7 @@
       "batch": 4
     },
     {
-      "id": "t103",
+      "id": "t93",
       "date": "2025-01-25",
       "value_date": "2025-01-25",
       "account_number": "XXXX XXXX XXXX 4417",
@@ -3959,7 +3609,7 @@
       "batch": 4
     },
     {
-      "id": "t104",
+      "id": "t94",
       "date": "2025-01-27",
       "value_date": "2025-01-27",
       "account_number": "XXXX XXXX XXXX 4417",
@@ -3992,7 +3642,7 @@
       "batch": 4
     },
     {
-      "id": "t105",
+      "id": "t95",
       "date": "2025-02-03",
       "value_date": "2025-02-03",
       "account_number": "XXXX XXXX XXXX 4417",
@@ -4025,7 +3675,7 @@
       "batch": 4
     },
     {
-      "id": "t106",
+      "id": "t96",
       "date": "2025-02-07",
       "value_date": "2025-02-07",
       "account_number": "XXXX XXXX XXXX 4417",
@@ -4060,7 +3710,7 @@
       "batch": 4
     },
     {
-      "id": "t107",
+      "id": "t97",
       "date": "2025-02-09",
       "value_date": "2025-02-09",
       "account_number": "XXXX XXXX XXXX 4417",
@@ -4098,7 +3748,7 @@
       "batch": 4
     },
     {
-      "id": "t108",
+      "id": "t98",
       "date": "2025-02-10",
       "value_date": "2025-02-10",
       "account_number": "XXXX XXXX XXXX 4417",
@@ -4131,73 +3781,7 @@
       "batch": 4
     },
     {
-      "id": "t109",
-      "date": "2025-02-12",
-      "value_date": "2025-02-12",
-      "account_number": "XXXX XXXX XXXX 4417",
-      "month": "2025-02",
-      "narration": "LATE PAYMENT FEE",
-      "debit": 750,
-      "credit": null,
-      "balance": 27409.04,
-      "currency": "INR",
-      "counterparty": "MERIDIAN BANK",
-      "counterparty_confidence": 0.9,
-      "counterparty_format": "Bank-generated",
-      "channel": "INTERNAL",
-      "attributes": {},
-      "level1": "DEBIT",
-      "level2": "PENALTY",
-      "category_group": "fees",
-      "essential": null,
-      "fixed_or_variable": "variable",
-      "classification_confidence": 0.9,
-      "method": "RULE",
-      "method_reason": "Narration keyword \"LATE PAYMENT\"",
-      "review": {
-        "flagged": false,
-        "reasons": [],
-        "impact": null,
-        "auto_accepted_low_impact": false
-      },
-      "source_page": 11,
-      "batch": 4
-    },
-    {
-      "id": "t110",
-      "date": "2025-02-12",
-      "value_date": "2025-02-12",
-      "account_number": "XXXX XXXX XXXX 4417",
-      "month": "2025-02",
-      "narration": "GST ON LATE PAYMENT FEE",
-      "debit": 135,
-      "credit": null,
-      "balance": 27544.04,
-      "currency": "INR",
-      "counterparty": "MERIDIAN BANK",
-      "counterparty_confidence": 0.9,
-      "counterparty_format": "Bank-generated",
-      "channel": "INTERNAL",
-      "attributes": {},
-      "level1": "DEBIT",
-      "level2": "BANK_CHARGES",
-      "category_group": "fees",
-      "essential": null,
-      "fixed_or_variable": "variable",
-      "classification_confidence": 0.9,
-      "method": "RULE",
-      "method_reason": "Narration keyword \"GST ON\"",
-      "review": {
-        "flagged": false,
-        "reasons": [],
-        "impact": null,
-        "auto_accepted_low_impact": false
-      },
-      "source_page": 11,
-      "batch": 4
-    },
-    {
-      "id": "t111",
+      "id": "t99",
       "date": "2025-02-18",
       "value_date": "2025-02-18",
       "account_number": "XXXX XXXX XXXX 4417",
@@ -4205,7 +3789,7 @@
       "narration": "CARD/PLAYARENA GAMING",
       "debit": 1999,
       "credit": null,
-      "balance": 29543.04,
+      "balance": 28658.04,
       "currency": "INR",
       "counterparty": "PLAYARENA GAMING",
       "counterparty_confidence": 0.9,
@@ -4230,7 +3814,7 @@
       "batch": 4
     },
     {
-      "id": "t112",
+      "id": "t100",
       "date": "2025-02-25",
       "value_date": "2025-02-25",
       "account_number": "XXXX XXXX XXXX 4417",
@@ -4238,7 +3822,7 @@
       "narration": "PAYMENT RECEIVED THANK YOU",
       "debit": null,
       "credit": 26310,
-      "balance": 3233.04,
+      "balance": 2348.04,
       "currency": "INR",
       "counterparty": "Own card account",
       "counterparty_confidence": 0.9,
@@ -4263,7 +3847,7 @@
       "batch": 4
     },
     {
-      "id": "t113",
+      "id": "t101",
       "date": "2025-03-05",
       "value_date": "2025-03-05",
       "account_number": "XXXX XXXX XXXX 4417",
@@ -4271,7 +3855,7 @@
       "narration": "APPLE PAY/ZENITH ELECTRONICS",
       "debit": 3499,
       "credit": null,
-      "balance": 6732.04,
+      "balance": 5847.04,
       "currency": "INR",
       "counterparty": "ZENITH ELECTRONICS",
       "counterparty_confidence": 0.9,
@@ -4298,7 +3882,7 @@
       "batch": 4
     },
     {
-      "id": "t114",
+      "id": "t102",
       "date": "2025-03-09",
       "value_date": "2025-03-09",
       "account_number": "XXXX XXXX XXXX 4417",
@@ -4306,7 +3890,7 @@
       "narration": "INTL TXN/USD 24.99/CLOUDNOTE INC/APPLE PAY",
       "debit": 2156.05,
       "credit": null,
-      "balance": 8888.09,
+      "balance": 8003.09,
       "currency": "USD",
       "counterparty": "CLOUDNOTE INC",
       "counterparty_confidence": 0.9,
@@ -4336,7 +3920,7 @@
       "batch": 4
     },
     {
-      "id": "t115",
+      "id": "t103",
       "date": "2025-03-10",
       "value_date": "2025-03-10",
       "account_number": "XXXX XXXX XXXX 4417",
@@ -4344,7 +3928,7 @@
       "narration": "FOREX MARKUP FEE 3.5%",
       "debit": 75.46,
       "credit": null,
-      "balance": 8963.55,
+      "balance": 8078.55,
       "currency": "INR",
       "counterparty": "MERIDIAN BANK",
       "counterparty_confidence": 0.9,
@@ -4369,7 +3953,7 @@
       "batch": 4
     },
     {
-      "id": "t116",
+      "id": "t104",
       "date": "2025-03-15",
       "value_date": "2025-03-15",
       "account_number": "XXXX XXXX XXXX 4417",
@@ -4377,7 +3961,7 @@
       "narration": "CARD/GRAND ORCHID HOTELS",
       "debit": 14200,
       "credit": null,
-      "balance": 23163.55,
+      "balance": 22278.55,
       "currency": "INR",
       "counterparty": "GRAND ORCHID HOTELS",
       "counterparty_confidence": 0.9,
@@ -4402,7 +3986,7 @@
       "batch": 4
     },
     {
-      "id": "t117",
+      "id": "t105",
       "date": "2025-03-21",
       "value_date": "2025-03-21",
       "account_number": "XXXX XXXX XXXX 4417",
@@ -4410,7 +3994,7 @@
       "narration": "CARD/SPICE ROUTE CAFE",
       "debit": 1870,
       "credit": null,
-      "balance": 25033.55,
+      "balance": 24148.55,
       "currency": "INR",
       "counterparty": "SPICE ROUTE CAFE",
       "counterparty_confidence": 0.9,
@@ -4435,7 +4019,7 @@
       "batch": 4
     },
     {
-      "id": "t118",
+      "id": "t106",
       "date": "2025-03-25",
       "value_date": "2025-03-25",
       "account_number": "XXXX XXXX XXXX 4417",
@@ -4443,7 +4027,7 @@
       "narration": "PAYMENT RECEIVED THANK YOU",
       "debit": null,
       "credit": 24480,
-      "balance": 553.55,
+      "balance": -331.45,
       "currency": "INR",
       "counterparty": "Own card account",
       "counterparty_confidence": 0.9,
@@ -4468,7 +4052,7 @@
       "batch": 4
     },
     {
-      "id": "t119",
+      "id": "t107",
       "date": "2025-03-28",
       "value_date": "2025-03-28",
       "account_number": "XXXX XXXX XXXX 4417",
@@ -4476,7 +4060,7 @@
       "narration": "CARD/CITY FUELS",
       "debit": 2500,
       "credit": null,
-      "balance": 3053.55,
+      "balance": 2168.55,
       "currency": "INR",
       "counterparty": "CITY FUELS",
       "counterparty_confidence": 0.9,
@@ -4511,20 +4095,17 @@
       "minimum_months": 3,
       "sufficient_history": true
     },
-    "composite_score": 777,
+    "composite_score": 931,
     "scale": "0-1000",
-    "rating_band": "Good",
+    "rating_band": "Excellent",
     "band_decision": "APPROVE",
-    "decision": "REFER",
-    "decision_overridden": true,
+    "decision": "APPROVE",
+    "decision_overridden": false,
     "decision_reasons": [
-      "Cash deposits structured just below ₹50,000 reporting threshold",
-      "Circular fund movement with the same counterparty within 3 days",
-      "EMI bounce in the period — condition: NACH mandate on the salary account",
-      "1 penalty fee(s) on the credit card"
+      "Band \"Excellent\" maps to APPROVE under the default policy"
     ],
     "provisional": true,
-    "pending_review_items": 5,
+    "pending_review_items": 3,
     "components": [
       {
         "component": "Income Stability",
@@ -4535,26 +4116,26 @@
       {
         "component": "Debt Service",
         "weight_pct": 20,
-        "score_0_100": 79.6,
-        "points": 159
+        "score_0_100": 92.5,
+        "points": 185
       },
       {
         "component": "Liquidity",
         "weight_pct": 15,
-        "score_0_100": 90.5,
-        "points": 136
+        "score_0_100": 90,
+        "points": 135
       },
       {
         "component": "Banking Behaviour",
         "weight_pct": 10,
-        "score_0_100": 50.8,
-        "points": 51
+        "score_0_100": 96.7,
+        "points": 97
       },
       {
         "component": "Fraud Indicators",
         "weight_pct": 15,
-        "score_0_100": 45,
-        "points": 68
+        "score_0_100": 100,
+        "points": 150
       },
       {
         "component": "Expense Management",
@@ -4566,7 +4147,7 @@
     "metrics": {
       "income_stability": {
         "avg_monthly_income": 167111.33,
-        "unclassified_inflow_share_pct": 9.4,
+        "unclassified_inflow_share_pct": 0,
         "monthly_income": [
           {
             "month": "2025-01",
@@ -4645,8 +4226,8 @@
             "loan_account": "LN0045821936",
             "lender": "HOMEFIN LTD",
             "monthly_emi": 38450,
-            "presented": 4,
-            "bounced": 1
+            "presented": 3,
+            "bounced": 0
           },
           {
             "loan_account": "LN7781200453",
@@ -4654,70 +4235,32 @@
             "monthly_emi": 14200,
             "presented": 3,
             "bounced": 0
-          },
-          {
-            "loan_account": "LN-QC88123",
-            "lender": "QUICKCASH FINTECH",
-            "monthly_emi": 9100,
-            "presented": 1,
-            "bounced": 0
           }
         ],
-        "monthly_emi_total": 61750,
-        "foir_pct": 37,
-        "emi_bounce_rate_pct": 12.5,
-        "on_time_payment_rate_pct": 85.7
+        "monthly_emi_total": 52650,
+        "foir_pct": 31.5,
+        "emi_bounce_rate_pct": 0,
+        "on_time_payment_rate_pct": 100
       },
       "liquidity": {
-        "avg_eod_balance": 207356.9,
-        "min_eod_balance": 33579.3,
-        "negative_balance_days": 1,
+        "avg_eod_balance": 154967.9,
+        "min_eod_balance": 97069.3,
+        "negative_balance_days": 0,
         "days_observed": 90
       },
       "banking_behaviour": {
-        "bounces": 1,
-        "bounce_charges": [
-          {
-            "date": "2025-02-04",
-            "amount": 590,
-            "narration": "NACH RTN CHGS-LN0045821936 INCL GST"
-          }
-        ],
-        "penalty_fees": [
-          {
-            "date": "2025-02-12",
-            "amount": 750,
-            "narration": "LATE PAYMENT FEE"
-          }
-        ],
-        "total_fees_and_charges": 2308.64,
-        "overdraft_days": 1
+        "bounces": 0,
+        "bounce_charges": [],
+        "penalty_fees": [],
+        "total_fees_and_charges": 833.64,
+        "overdraft_days": 0
       },
       "fraud_indicators": {
         "balance_arithmetic_breaks": 0,
         "rows_with_printed_balance_pct": 100,
-        "circular_transactions": [
-          {
-            "counterparty": "VIKRAM TRADERS",
-            "in": {
-              "date": "2025-03-17",
-              "amount": 75000
-            },
-            "out": {
-              "date": "2025-03-18",
-              "amount": 75000
-            }
-          }
-        ],
+        "circular_transactions": [],
         "overnight_pass_through": [],
-        "structuring": [
-          {
-            "cash_deposits": 3,
-            "total": 147000,
-            "from": "2025-03-10",
-            "to": "2025-03-14"
-          }
-        ]
+        "structuring": []
       },
       "expense_management": {
         "monthly_spend": [
@@ -4730,9 +4273,9 @@
           },
           {
             "month": "2025-02",
-            "total": 89903.49,
+            "total": 88428.49,
             "essential": 68584,
-            "discretionary": 21319.49,
+            "discretionary": 19844.49,
             "fixed": 55827
           },
           {
@@ -4743,12 +4286,12 @@
             "fixed": 52038
           }
         ],
-        "essential_share_pct": 72.5,
-        "discretionary_share_pct": 27.5,
-        "fixed_share_pct": 58,
-        "variable_share_pct": 42,
+        "essential_share_pct": 72.9,
+        "discretionary_share_pct": 27.1,
+        "fixed_share_pct": 58.3,
+        "variable_share_pct": 41.7,
         "spend_trend_first_to_last_pct": -33.2,
-        "savings_rate_after_emi_pct": -3
+        "savings_rate_after_emi_pct": 2.7
       }
     }
   }

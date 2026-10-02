@@ -110,6 +110,37 @@ const tests = {
       ['date', 'debit', 'credit', 'balance'].forEach((k) => assert.strictEqual(e.ok[k], e.n, n + ' ' + k + ' ' + e.ok[k] + '/' + e.n));
     });
   },
+  'good applicant (3 months) → APPROVE, not overridden': () => {
+    const r = run([path.join(TS, '07_good_applicant_3_months.pdf')]);
+    const R = risk(r.json);
+    assert.strictEqual(R.decision, 'APPROVE');
+    assert.strictEqual(R.decision_overridden, false);
+    assert.strictEqual(r.json.data_validation.summary.failed, 0);
+  },
+  'policy overrides are labelled as such': () => {
+    const r = run([path.join(TS, '01_single_month_digital.pdf')]);
+    assert.strictEqual(risk(r.json).band_decision, 'APPROVE');
+    assert.strictEqual(risk(r.json).decision_overridden, true);
+    assert.match(r.stderr + '', /LLM step/);
+  },
+  '--taxonomy CSV overrides and extends the categories': () => {
+    const N = path.join(TS, 'external', 'northstar-business-current-mar-2026.pdf');
+    const base = run([N]); const custom = run([N, '--taxonomy', path.join(TS, 'custom_taxonomy.csv')]);
+    assert.match(custom.stderr, /1 override\(s\), 2 new categories/);
+    const biz = custom.json.transactions.filter((t) => t.level2 === 'BUSINESS_INCOME');
+    assert.ok(biz.length >= 5 && biz.every((t) => /Custom CSV keyword/.test(t.method_reason)));
+    assert.ok(custom.json.transactions.some((t) => t.level2 === 'SOFTWARE_SUBSCRIPTION'));
+    const share = (j) => risk(j).metrics.income_stability.unclassified_inflow_share_pct;
+    assert.ok(share(custom.json) < share(base.json));
+    const bad = path.join(tmp, 'bad.csv'); fs.writeFileSync(bad, 'name,type\nX,Y\n');
+    assert.strictEqual(run([N, '--taxonomy', bad]).code, 1);
+  },
+  'sample pages for the multi-month generator can be rebuilt': () => {
+    const r = spawnSync('node', [path.join(__dirname, '..', '..', 'tools', 'dump_sample_pages.js'), 'flags'], { encoding: 'utf8' });
+    const pages = JSON.parse(r.stdout);
+    assert.strictEqual(pages.length, 12);
+    assert.match(pages[0].text, /Page 1 of 12/);
+  },
   'jumbled pages still stop the pipeline': () => {
     const r = run(['--sample', 'jumbled']);
     assert.strictEqual(r.code, 3);
@@ -137,6 +168,23 @@ tests['llm.js builds a schema-constrained request and rejects bad stops'] = asyn
   for (const bad of [{ stop_reason: 'refusal', parsed_output: null }, { stop_reason: 'max_tokens', parsed_output: null }, { stop_reason: 'end_turn', parsed_output: null }]) {
     reply = bad; await assert.rejects(llm.classify({ taxonomy: [], rows: [] }));
   }
+};
+
+// personal data never reaches the API in clear text, and the answer comes back unmasked
+tests['llm.js masks personal data before sending and restores it in the answer'] = async () => {
+  const { createLlm } = require('../llm');
+  let sent = '';
+  const client = { beta: { messages: { parse: async (p) => {
+    sent = p.messages[0].content + p.system;
+    const toks = sent.match(/\[MASK\d+\]/g) || [];
+    return { stop_reason: 'end_turn', parsed_output: { pages: [{ page_index: 1, metadata: { account_number: toks.find((t) => sent.indexOf('Account Number: ' + t) >= 0) || null }, transactions: [{ date: '2025-01-02', value_date: null, narration: toks.join(' '), debit: 1, credit: null, balance: 1 }] }] } };
+  } } } };
+  const page = 'Account Holder: ARJUN NAIR\nAccount Number: 50200011223344\nPAN: ABCDE1234F\n02/01/2025 UPI-RAJIV MALHOTRA-rajiv.m@okhdfcbank-HDFC0001234-501234567890-RENT 22,000.00 1,32,920.00';
+  const out = await createLlm({ client }).extractBatch({ batch: 1, pages: [{ index: 1, text: page }], carried: { account_holder: 'ARJUN NAIR', account_number: '50200011223344' } });
+  ['ARJUN NAIR', '50200011223344', 'rajiv.m', 'ABCDE1234F', '501234567890'].forEach((v) => assert.ok(sent.indexOf(v) < 0, 'leaked: ' + v));
+  ['22,000.00', '1,32,920.00', '02/01/2025', 'HDFC0001234', '@okhdfcbank'].forEach((v) => assert.ok(sent.indexOf(v) >= 0, 'over-masked: ' + v));
+  assert.strictEqual(out.pages[0].metadata.account_number, '50200011223344');
+  ['ARJUN NAIR', 'rajiv.m', 'ABCDE1234F', '501234567890'].forEach((v) => assert.ok(out.pages[0].transactions[0].narration.indexOf(v) >= 0, 'not restored: ' + v));
 };
 
 let failed = 0;

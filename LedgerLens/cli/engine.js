@@ -587,6 +587,7 @@ class Component extends DCLogic {
       const part = cand.slice(i, i + CHUNK);
       try {
         const res = await this.llmClassify({
+          holders: Array.from(new Set(T.map((t) => t.acct && t.acct.holder).filter((h) => h && h !== '—'))),
           taxonomy: tax.map((x) => ({ code: x.code, level1: x.l1, group: x.group })),
           rows: part.map((t) => ({ id: t.id, narration: t.narr, level1: t.l1, amount: t.amount, channel: t.channel, rule_counterparty: t.cp, rule_counterparty_confidence: Math.round(t.cpConf * 100) / 100, rule_category: t.l2, rule_confidence: Math.round(t.conf * 100) / 100 }))
         });
@@ -1030,7 +1031,8 @@ class Component extends DCLogic {
     ];
     const total = Math.round(sum(comps.map((c) => c.s * c.w)) * 10);
     const band = total >= 800 ? 'Excellent' : total >= 700 ? 'Good' : total >= 600 ? 'Fair' : total >= 500 ? 'Below Average' : 'Poor';
-    let decision = { Excellent: 'APPROVE', Good: 'APPROVE', Fair: 'APPROVE WITH CONDITIONS', 'Below Average': 'REFER', Poor: 'DECLINE' }[band];
+    const bandDecision = { Excellent: 'APPROVE', Good: 'APPROVE', Fair: 'APPROVE WITH CONDITIONS', 'Below Average': 'REFER', Poor: 'DECLINE' }[band];
+    let decision = bandDecision;
     const why = [];
     if (foir > 0.65) { decision = 'DECLINE'; why.push('FOIR above 65% hard limit'); }
     if (integrity.length) { decision = 'REFER'; why.push('Statement balance arithmetic broken on ' + integrity.length + ' row(s) — possible tampering'); }
@@ -1047,10 +1049,13 @@ class Component extends DCLogic {
     if (penalties.length) why.push(penalties.length + ' penalty fee(s) on the credit card');
     if (!why.length) why.push('Band "' + band + '" maps to ' + decision + ' under the default policy');
     return {
-      months, spanDays, historyOk, minMonths: MIN_MONTHS, balRows, balCoverage, unexplainedShare, comps, total, band, decision, why, incomeByCat, income, avgInc, cv, growth, shareTop, incomeCats, loanList, monthlyEmi, foir, bounceRate, ontimeRate, bounced, presented,
+      bandDecision, overridden: decision !== bandDecision, months, spanDays, historyOk, minMonths: MIN_MONTHS, balRows, balCoverage, unexplainedShare, comps, total, band, decision, why, incomeByCat, income, avgInc, cv, growth, shareTop, incomeCats, loanList, monthlyEmi, foir, bounceRate, ontimeRate, bounced, presented,
       avgEod, minEod, negDays, eodDays: eod.length, bounceCharges, penalties, chargeAmt, integrity, circular, overnight, structuring, exp, essM, discM, fixM, discShare, fixedShare, expTrend, savingsRate, totExp
     };
   }
+
+  // "901/1000 · Excellent · REFER" reads as a contradiction; say when policy overrode the band
+  verdict(R) { return R.total + '/1000 · ' + R.band + (R.overridden ? ' score, overridden → ' : ' → ') + R.decision; }
 
   // ---------- actions ----------
   componentDidMount() { this._warm = setTimeout(() => { if (this.state.ocrState && this.state.ocrState.st === 'idle') { this.log('INFO', 'OCR', 'Warming up OCR engine in the background'); this.ocrEngine().catch(() => {}); } }, 2500); }
@@ -1090,8 +1095,8 @@ class Component extends DCLogic {
     const st2 = { ...s, accounts, raw };
     const T = this.buildTxns(st2); const R = this.score(T, st2);
     this.log('USER', 'Account details', 'Entered manually — ' + (changes.join(' · ') || 'no changes') + (R ? ' → re-scored ' + R.total + '/1000 · ' + R.band + ' · ' + R.decision : ''));
-    const rs = s.runStatus && s.runStatus.state === 'done' && R ? { ...s.runStatus, total: R.total, band: R.band, decision: R.decision, nAcc: accounts.length, flagged: T.filter((t) => t.flagged).length } : s.runStatus;
-    if (rs && this._lastSummary && this._lastSummary.run === rs.run) this._lastSummary = { ...this._lastSummary, total: rs.total, band: rs.band, decision: rs.decision };
+    const rs = s.runStatus && s.runStatus.state === 'done' && R ? { ...s.runStatus, total: R.total, band: R.band, decision: R.decision, overridden: R.overridden, nAcc: accounts.length, flagged: T.filter((t) => t.flagged).length } : s.runStatus;
+    if (rs && this._lastSummary && this._lastSummary.run === rs.run) this._lastSummary = { ...this._lastSummary, total: rs.total, band: rs.band, decision: rs.decision, overridden: rs.overridden };
     this.setState({ accounts, raw, acctDraft: {}, showAcctForm: false, acctSkipped: true, acctMsg: 'Saved. Transactions, review queue and risk score were recalculated' + (R ? ' — now ' + R.total + '/1000 · ' + R.band + ' · ' + R.decision : '') + '.', runStatus: rs });
   }
   resetWorkspace(label) {
@@ -1215,10 +1220,10 @@ class Component extends DCLogic {
       const R = this.score(T, tmp);
       R.comps.forEach((c) => this.log('INFO', 'Score', c.name + ': ' + Math.round(c.s) + '/100 × ' + Math.round(c.w * 100) + '%', false));
       [['circular', 'Circular transaction'], ['overnight', 'Overnight pass-through'], ['structuring', 'Structuring pattern'], ['integrity', 'Balance mismatch']].forEach(([k, l]) => { if (R[k].length) this.log('WARN', 'Fraud check', R[k].length + ' × ' + l, false); });
-      this.log(R.decision === 'APPROVE' ? 'INFO' : 'WARN', 'Decision', R.total + '/1000 · ' + R.band + ' → ' + R.decision, false);
-      const summary = { run: this._runId, source: sourceLabel, day: this.today(), started: startedAt, ended: this.now(), nTx: T.length, nAcc: ex.accounts.length, nPages: pages.length, total: R.total, band: R.band, decision: R.decision, flagged: fl };
+      this.log(R.decision === 'APPROVE' ? 'INFO' : 'WARN', 'Decision', this.verdict(R), false);
+      const summary = { run: this._runId, source: sourceLabel, day: this.today(), started: startedAt, ended: this.now(), nTx: T.length, nAcc: ex.accounts.length, nPages: pages.length, total: R.total, band: R.band, decision: R.decision, overridden: R.overridden, flagged: fl };
       this._lastSummary = summary;
-      push(5, 'done', R.total + '/1000 · ' + R.band + ' · ' + R.decision, null, { busy: false, current: null, runStatus: { ...summary, state: 'done', replaced } });
+      push(5, 'done', this.verdict(R), null, { busy: false, current: null, runStatus: { ...summary, state: 'done', replaced } });
       this.log('INFO', 'Run summary', 'Run #' + summary.run + ' completed — ' + summary.nTx + ' txns, ' + summary.nAcc + ' accounts, ' + summary.nPages + ' pages · ' + summary.total + '/1000 ' + summary.band + ' · ' + summary.decision, true, summary);
     } catch (e) {
       this.log('ERROR', 'Pipeline', 'Unexpected error: ' + (e && e.message ? e.message : e), false);
@@ -1360,7 +1365,7 @@ class Component extends DCLogic {
     const out = { hasRunDone: !!(r && r.state === 'done'), hasRunBusy: !!(r && r.state === 'running'), hasRunFail: !!(r && r.state === 'failed'), hasReplaced: !!(r && r.replaced), noReplaced: !(r && r.replaced),
       runNo: r ? r.run : '', runSrc: r ? r.source : '', runEnd: r ? (r.ended || '').slice(0, 8) : '', runStart: r ? (r.started || '').slice(0, 8) : '', runDay: r ? r.day || '' : '',
       runFacts: r && r.state === 'done' ? r.nTx + ' transactions · ' + r.nAcc + ' accounts · ' + r.nPages + ' pages' : '',
-      runResult: r && r.state === 'done' ? r.total + '/1000 · ' + r.band + ' · ' + r.decision + (r.flagged ? ' (provisional — ' + r.flagged + ' to review)' : '') : '',
+      runResult: r && r.state === 'done' ? this.verdict(r) + (r.flagged ? ' (provisional — ' + r.flagged + ' to review)' : '') : '',
       runFailMsg: r ? (r.msg || '') : '',
       repNo: r && r.replaced ? r.replaced.run : '', repSrc: r && r.replaced ? r.replaced.source : '', repFacts: r && r.replaced ? r.replaced.nTx + ' txns · ' + r.replaced.total + '/1000 · ' + r.replaced.decision : '',
       pipeHead: r ? 'Run #' + r.run + (r.state === 'done' ? ' · refreshed ' + (r.ended || '').slice(0, 8) : (r.state === 'running' ? ' · running since ' + (r.started || '').slice(0, 8) : ' · failed ' + (r.ended || '').slice(0, 8))) : 'No run yet',
@@ -1400,7 +1405,7 @@ class Component extends DCLogic {
       credit_risk_summary: R ? {
         customer: (s.accounts[0] && s.accounts[0].holder) || null,
         period: { from_month: R.months[0], to_month: R.months[R.months.length - 1], months: R.months.length, days_covered: R.spanDays, minimum_months: R.minMonths, sufficient_history: R.historyOk },
-        composite_score: R.total, scale: '0-1000', rating_band: R.band, decision: R.decision, decision_reasons: R.why,
+        composite_score: R.total, scale: '0-1000', rating_band: R.band, band_decision: R.bandDecision, decision: R.decision, decision_overridden: R.overridden, decision_reasons: R.why,
         provisional: T.some((t) => t.flagged), pending_review_items: T.filter((t) => t.flagged).length,
         components: R.comps.map((c) => ({ component: c.name, weight_pct: Math.round(c.w * 100), score_0_100: Math.round(c.s * 10) / 10, points: Math.round(c.s * c.w * 10) })),
         metrics: {
@@ -1715,7 +1720,7 @@ class Component extends DCLogic {
       }));
       const incTable = R.incomeByCat.map((c) => ({ cat: c.cat, cells: c.vals.map((v) => ({ v: v ? this.fmt0(v) : '–' })) }));
       risk = {
-        total: R.total, band: R.band, decision: R.decision, why: R.why.map((w) => ({ w })), comps, flags, hasFlags: flags.length > 0, monthsV, incTable, monthHeads: R.months.map((m) => ({ m: this.monthLabel(m) })),
+        total: R.total, band: R.band, decision: R.decision, overrideNote: R.overridden ? 'Policy override — the score alone (' + R.band + ') would give ' + R.bandDecision : '', why: R.why.map((w) => ({ w })), comps, flags, hasFlags: flags.length > 0, monthsV, incTable, monthHeads: R.months.map((m) => ({ m: this.monthLabel(m) })),
         loans: R.loanList.map((l) => ({ ...l, mS: '₹' + this.fmt0(l.monthly), b: l.bounced ? l.bounced + ' bounce' : 'Clean', bStyle: l.bounced ? 'color:#B42318;font-weight:600' : 'color:#1F4FD1;font-weight:600' })), hasLoans: R.loanList.length > 0,
         marker: 'position:absolute;top:-6px;width:3px;height:30px;background:#16181D;left:' + (R.total / 10) + '%',
         bandStyle: 'font-size:15px;font-weight:600;color:' + bandCol, decStyle: 'display:inline-flex;padding:10px 16px;border-radius:4px;color:#FFFFFF;font-weight:700;letter-spacing:.04em;font-size:15px;background:' + decCol,

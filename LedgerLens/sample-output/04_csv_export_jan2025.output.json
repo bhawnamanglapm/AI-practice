@@ -1,6 +1,6 @@
 {
   "schema": "ledgerlens.bsa.v1",
-  "generated_at": "2026-10-02T08:05:55.867Z",
+  "generated_at": "2026-10-02T08:16:27.718Z",
   "run": {
     "id": 1,
     "source": "04_csv_export_jan2025.csv",
@@ -1408,7 +1408,9 @@
     "composite_score": 901,
     "scale": "0-1000",
     "rating_band": "Excellent",
+    "band_decision": "APPROVE",
     "decision": "REFER",
+    "decision_overridden": true,
     "decision_reasons": [
       "Only 1 month(s) / 31 days of history — at least 3 months are required to decide; request more statements"
     ],

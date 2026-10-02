@@ -30,6 +30,7 @@ node cli.js ../test-statements/03a_scanned_page1.png -o out.json
 node cli.js ../test-statements/03b_scanned_statement.pdf -o out.json
 node cli.js locked.pdf --password <pw> -o out.json
 node cli.js --sample flags            # built-in samples: flags | clean | jumbled
+node cli.js statement.pdf --taxonomy ../test-statements/custom_taxonomy.csv   # override / extend categories
 node cli.js a.pdf b.pdf c.png         # several files / accounts in one upload
 
 # LLM step (Claude). Without a key the pipeline runs rules-only and says so.
@@ -39,9 +40,13 @@ node cli.js statement.pdf --llm all -o out.json                         # model 
 node cli.js statement.pdf --llm off                                     # rules only
 node cli.js statement.pdf --model claude-sonnet-5-5                     # another model (default claude-opus-5-5)
 
-npm test                              # 15 tests; LLM path uses a stand-in model, no key needed
+npm test                              # 20 tests; LLM path uses a stand-in model, no key needed
 node test/eval-external.js            # field accuracy on the external statements vs their answer keys
 ```
+**Custom taxonomy CSV** (CLI `--taxonomy`, or the web app's Taxonomy tab): columns `category,level1,group,keywords,expense_type,cost_type`, keywords separated by `;`. A row whose `category` + `level1` matches a built-in category overrides it (its keywords replace the built-in ones); any other row adds a new category. Custom keywords are matched before every built-in rule (confidence 95%, reason *Custom CSV keyword "…"*). Example: `test-statements/custom_taxonomy.csv` (1 override, 2 new categories) — on the external Northstar statement it turns client receipts into BUSINESS_INCOME and cuts unclassified inflows from 86% to 39%.
+
+**Rebuilding the test statements** (from the LedgerLens folder; needs `pip install reportlab pillow`): `python3 tools/make_single_month_and_scans.py` (01, 03a, 03b, 04) · `python3 tools/make_multi_month.py` (02) · `python3 tools/make_multi_month.py clean` (07) · `python3 tools/make_weak_applicant.py` (06).
+
 Exit codes: `0` success · `2` password needed or wrong · `3` pipeline stopped by validation (e.g. jumbled pages, no rows found).
 
 ---
@@ -84,10 +89,10 @@ flowchart LR
 2. **The model is never trusted blindly.** Extraction output re-enters the rule pipeline and must pass the balance-arithmetic checks; classification output must name a taxonomy code with the right Level 1. Schema-validated JSON (structured outputs), effort `low` (a well-specified extraction task), server-side refusal fallback on. Any API error falls back to rules for that batch/chunk — the run never dies because of the model.
 3. **Confidence + method on every field that matters.** Counterparty and category both carry a confidence; credit officers can see *how* each label was produced.
 4. **Integrity over coverage.** Balance arithmetic is checked on every row and opening + movements = closing per account. A broken balance **forces REFER** regardless of score — an OCR misread or an edited PDF must never silently produce an APPROVE.
-5. **Decision = band + hard overrides.** The band sets the base decision; policy rules override it (FOIR > 65% → DECLINE; **under 3 months of history**, unreadable balances, tampering, structuring, circular flows → REFER; > 30% of inflows unclassified → no APPROVE; any EMI bounce → at most APPROVE WITH CONDITIONS). Reasons are always listed.
+5. **Decision = band + hard overrides.** The band sets the base decision; policy rules override it (FOIR > 65% → DECLINE; **under 3 months of history**, unreadable balances, tampering, structuring, circular flows → REFER; > 30% of inflows unclassified → no APPROVE; any EMI bounce → at most APPROVE WITH CONDITIONS). Reasons are always listed. When a rule overrides the band, the output says so — `901/1000 · Excellent score, overridden → REFER`, and in the JSON `band_decision: "APPROVE"`, `decision_overridden: true` — so a high score next to a REFER never reads as a contradiction.
 6. **Not every credit is income.** Income = SALARY, BUSINESS_INCOME, INTEREST, RENTAL_INCOME only. P2P receipts, refunds, reversals, loan disbursals, own-account transfers, card payments and cash deposits are excluded.
 7. **Review effort is a product constraint.** A queue nobody can finish is useless, hence materiality triage, grouping and learnable rules.
-8. **Privacy by design.** Web app processes everything on the user's device; nothing is uploaded; passwords are never stored or logged. The CLI sends statement text to the Anthropic API only when a key is configured; `--llm off` keeps it fully local.
+8. **Privacy by design.** Web app processes everything on the user's device; nothing is uploaded; passwords are never stored or logged. The CLI sends statement text to the Anthropic API only when a key is configured, and **masks personal data first**: account holder names, digit runs of 9+ (account, card, phone, UTR/reference numbers), the personal part of UPI IDs / e-mails and PAN numbers become `[MASKn]` placeholders that are restored in the model's answer on the machine. Amounts, dates and IFSC codes are kept (the model needs them). `--llm off` keeps everything local.
 9. **One engine, two shells.** The same code powers the UI and the CLI, so the JSON from the CLI equals what the UI shows.
 
 ---
@@ -154,6 +159,7 @@ Two sets, **all synthetic — no real customer data is used anywhere**:
 | `03b_scanned_statement.pdf` | Image-only (scanned) PDF → render → OCR | 2 / 1 / 32 | **841 · Excellent · REFER** (CLI: one OCR digit error breaks the balance chain; plus 1 month of history) | 0 | 18 / 1 / 2 / 1 |
 | `04_csv_export_jan2025.csv` | Bank CSV export with header rows, quoted amounts | 1 / 1 / 32 | **901 · Excellent · REFER** (only 1 month of history) | 0 | 15 / 1 / 0 / 6 |
 | `05_amount_drcr_column.csv` | Kotak-style layout: one **Amount** column + **Dr/Cr** marker, Jan–Mar 2025 | 1 / 1 / 24 | Rules only: **stops** ("No transaction rows were recognised"). With the LLM step: batch read by the model, all balance checks pass (verified in `npm test` with a stand-in model) | — | — |
+| `07_good_applicant_3_months.pdf` | **Good applicant**, Jan–Mar 2025: the same 3-account customer as `02` without the red flags — salary ₹1.4L, home + car EMIs, no bounces (`tools/make_multi_month.py clean`) | 12 / 3 / 108 | **931 · Excellent → APPROVE** | 3 | 18 / 0 / 0 / 4 |
 | `06_weak_applicant_3_months.pdf` | **Weak applicant**, Jan–Mar 2025: salary ~₹52k, 3 EMIs = ₹38.2k (FOIR 75%), 2 EMI bounces + return charges, EMIs debited before salary → 15 overdraft days, P2P "hand loans", instant-loan disbursal, min-balance charges (`tools/make_weak_applicant.py`) | 3 / 1 / 48 | **532 · Below Average · DECLINE** (FOIR above 65% hard limit; EMI bounces) | 0 | 18 / 0 / 0 / 4 |
 | built-in `jumbled` sample | Pages 4 and 5 swapped | — | **Stops:** "Pages appear jumbled: position 4 carries Page 5 of 12" | — | — |
 
@@ -173,7 +179,7 @@ What the external set found, and what changed:
 - **`Cr`/`Dr` balance markers** wrapped onto the next line were glued into narrations (Astra 0% → 90% exact). Fixed generically.
 - **Not fixed:** the letter-spaced `S Y N T H E T I C  D E M O` watermark still leaks into some narrations; stripping it would be tuning to this sample. Amounts are unaffected.
 
-Sample outputs (transactions + credit risk summary + validation) are in `sample-output/*.output.json`, all produced by the CLI with the LLM step off (rules only). Schema: `ledgerlens.bsa.v1` — `run`, `accounts`, `data_validation`, `transactions[]`, `credit_risk_summary{composite_score, rating_band, decision, decision_reasons, components[], metrics{income_stability, debt_service, liquidity, banking_behaviour, fraud_indicators, expense_management}}`.
+Sample outputs (transactions + credit risk summary + validation) are in `sample-output/*.output.json`, all produced by the CLI with the LLM step off (rules only). Together they cover **APPROVE** (`07`), **REFER** (`01`–`04`, each for a different reason) and **DECLINE** (`06`). Schema: `ledgerlens.bsa.v1` — `run`, `accounts`, `data_validation`, `transactions[]`, `credit_risk_summary{composite_score, rating_band, band_decision, decision, decision_overridden, decision_reasons, components[], metrics{income_stability, debt_service, liquidity, banking_behaviour, fraud_indicators, expense_management}}`.
 
 ### Limitations observed with the test data
 - **OCR digit errors are real and are caught.** Running the scanned PDF through the CLI (poppler 200 dpi render) misread `1,532.40` as `1,632.40` on one row. Checks 14 and 15 failed and the decision was forced to **REFER** (906) instead of APPROVE — the intended safety behaviour. The browser render of the same file read every row correctly (966). At 300 dpi the CLI lost 5 rows, so 200 dpi is the default.
@@ -217,6 +223,7 @@ Sample outputs (transactions + credit risk summary + validation) are in `sample-
 6. **No external data:** no MCC codes for card merchants, no UPI-ID name lookup, IFSC resolves to bank (not branch), no bureau cross-check of EMIs.
 7. **Persistence:** rules, activity log and run history are kept in the browser's local storage only; no multi-user backend.
 8. **Scoring** is rules-based and uncalibrated (see Assumptions).
+9. **Masking is pattern-based.** Names of *other* people in narrations (e.g. a P2P counterparty) are sent in clear, because the model needs them to tell a person from a merchant; a holder name the rules could not read from the header is not masked either. Production would add NER-based redaction and a data-processing agreement.
 
 ---
 

@@ -1,6 +1,6 @@
 {
   "schema": "ledgerlens.bsa.v1",
-  "generated_at": "2026-10-02T08:05:56.744Z",
+  "generated_at": "2026-10-02T08:16:28.565Z",
   "run": {
     "id": 1,
     "source": "06_weak_applicant_3_months.pdf",
@@ -1954,7 +1954,9 @@
     "composite_score": 532,
     "scale": "0-1000",
     "rating_band": "Below Average",
+    "band_decision": "REFER",
     "decision": "DECLINE",
+    "decision_overridden": true,
     "decision_reasons": [
       "FOIR above 65% hard limit",
       "EMI bounce in the period — condition: NACH mandate on the salary account"
