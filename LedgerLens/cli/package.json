@@ -1,0 +1,21 @@
+{
+  "name": "ledgerlens-bsa-cli",
+  "version": "1.0.0",
+  "description": "LedgerLens Bank Statement Analyzer \u2014 run the same extraction, classification, validation and credit-risk engine as the web PoC from the command line",
+  "main": "cli.js",
+  "bin": {
+    "ledgerlens": "cli.js"
+  },
+  "scripts": {
+    "test": "node cli.js ../test-statements/02_multi_month_multi_account.pdf -o /tmp/ll_test.json"
+  },
+  "dependencies": {
+    "pdfjs-dist": "3.11.174",
+    "tesseract.js": "5.1.1",
+    "xlsx": "0.18.5",
+    "@tesseract.js-data/eng": "1.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
