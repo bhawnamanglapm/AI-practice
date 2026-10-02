@@ -1,5 +1,7 @@
 # LedgerLens — Demo walkthrough script (≈ 7 minutes)
 
+Need it shorter? See `DEMO_SCRIPT_SHORT.md` (3 minutes).
+
 Two parts: the **web app** (≈ 4½ min) shows the product, the **terminal** (≈ 2½ min) shows the Claude step, the external test and the tests. Every number below was checked against the current build; if your screen shows something different, say what you see, not what is written here.
 
 ---
