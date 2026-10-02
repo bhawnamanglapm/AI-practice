@@ -379,7 +379,7 @@ class Component extends DCLogic {
   readMeta(text) {
     const g = (re) => { const m = text.match(re); return m ? m[1].trim() : null; };
     const meta = {};
-    meta.bank = g(/(?:Bank\s*Name\s*[:\-,]\s*)([^\n|,]+)/i) || g(/^\s*([A-Z][A-Za-z&.\s]*\bBANK\b(?:\s+(?:LTD\.?|LIMITED))?)/im);
+    meta.bank = g(/(?:Bank\s*Name\s*[:\-,]\s*)([^\n|,]+)/i) || g(/^[ \t]*([A-Z][A-Za-z&. \t]*\bBANK\b(?:[ \t]+(?:LTD\.?|LIMITED))?)/im);
     meta.account = g(/(?:Account|A\/C|Card)\s*(?:Number|No\.?)\s*[:\-,]?\s*"?([X\d][X\d\s\-]{3,24}\d)/i);
     meta.currency = g(/Currency\s*[:\-,]?\s*([A-Z]{3})\b/) || g(/Amounts?\s+in\s+([A-Z]{3})\b/i);
     meta.holder = g(/(?:Account\s*Holder|Cardholder|Customer\s*Name)\s*[:\-,]\s*([^\n|,]+)/i);
@@ -443,7 +443,8 @@ class Component extends DCLogic {
           out.push(row);
         }
       } else if (out.length && !/page\s+\d+/i.test(line) && !/balance|statement|account|period/i.test(line) && line.length < 80 && !/\d+\.\d{2}/.test(line)) {
-        const last = out[out.length - 1]; if (last.loose) last.narr += ' ' + line;
+        // a lone Cr/Dr after a wide gap is the balance's sign marker wrapped onto this line, not narration
+        const last = out[out.length - 1]; const cont = line.replace(/\s{2,}(?:CR|DR)\.?$/i, '').trim(); if (last.loose && cont && !/^(?:CR|DR)\.?$/i.test(cont)) last.narr += ' ' + cont;
       }
     }
     return out;
@@ -508,7 +509,19 @@ class Component extends DCLogic {
   async llmClassify(req) { throw new Error('no LLM configured'); }
   // A page "looks like a statement page the rules missed" when it carries several dates but parseRows found nothing.
   llmNeedsPage(p) {
-    if (this.parseRows(p.text).some((r) => r.dr > 0 || r.cr > 0 || r.amt > 0)) return false;
+    const rows = this.parseRows(p.text).filter((r) => r.dr > 0 || r.cr > 0 || r.amt > 0);
+    if (rows.length) {
+      // rules read rows, but are they right? missing balances or a broken balance chain → let the model re-read the page
+      const withBal = rows.filter((r) => r.bal !== null && r.bal !== undefined);
+      if (withBal.length < rows.length * 0.8) return true;
+      let breaks = 0;
+      for (let i = 1; i < rows.length; i++) {
+        const pb = rows[i - 1].bal, b = rows[i].bal, a = rows[i].dr || rows[i].cr || rows[i].amt || 0;
+        if (pb === null || pb === undefined || b === null || b === undefined) continue;
+        if (Math.abs(pb - a - b) > 0.02 && Math.abs(pb + a - b) > 0.02) breaks++;
+      }
+      return breaks > 0;
+    }
     const dates = (p.text.match(/\b\d{1,2}[\/\-.](?:\d{1,2}|[A-Za-z]{3})[\/\-.]\d{2,4}\b|\b\d{4}-\d{2}-\d{2}\b/g) || []).length;
     return dates >= 3;
   }
@@ -987,7 +1000,10 @@ class Component extends DCLogic {
     const cash = T.filter((t) => t.l2 === 'CASH_DEPOSIT' && t.amount >= 40000 && t.amount < 50000);
     const structuring = [];
     cash.forEach((c, i) => { const win = cash.filter((x) => this.dayNum(x.date) >= this.dayNum(c.date) && this.dayNum(x.date) - this.dayNum(c.date) <= 30); if (win.length >= 3 && !structuring.length) structuring.push({ count: win.length, total: sum(win.map((x) => x.amount)), from: c.date, to: win[win.length - 1].date }); });
-    const fraudScore = this.clamp(100 - (integrity.length ? 40 : 0) - circular.length * 20 - overnight.length * 15 - structuring.length * 35, 0, 100);
+    // a balance check that could not run is not a pass: if the balance column was not read on most rows, extraction is unverified
+    const balRows = T.filter((t) => t.bal !== null && t.bal !== undefined).length;
+    const balCoverage = T.length ? balRows / T.length : 0;
+    const fraudScore = this.clamp(100 - (integrity.length || balCoverage < 0.8 ? 40 : 0) - circular.length * 20 - overnight.length * 15 - structuring.length * 35, 0, 100);
 
     // expenses
     const isExp = (t) => t.l1 === 'DEBIT' && !used.has(t.id) && !['transfer', 'savings', 'obligation'].includes(t.group);
@@ -1018,6 +1034,12 @@ class Component extends DCLogic {
     const why = [];
     if (foir > 0.65) { decision = 'DECLINE'; why.push('FOIR above 65% hard limit'); }
     if (integrity.length) { decision = 'REFER'; why.push('Statement balance arithmetic broken on ' + integrity.length + ' row(s) — possible tampering'); }
+    if (balCoverage < 0.8) { decision = 'REFER'; why.push('Running balance read on only ' + balRows + ' of ' + T.length + ' rows — extraction cannot be verified against the balance column'); }
+    // income must be explainable: large unclassified inflows mean the income figure (and FOIR) cannot be trusted
+    const inflow = sum(T.filter((t) => t.l1 === 'CREDIT' && !['SELF_TRANSFER', 'CC_PAYMENT', 'REVERSAL'].includes(t.l2)).map((t) => t.amount));
+    const unexplained = sum(T.filter((t) => t.l2 === 'OTHER_CREDIT').map((t) => t.amount));
+    const unexplainedShare = inflow ? unexplained / inflow : 0;
+    if (unexplainedShare > 0.3) { if (decision.indexOf('APPROVE') === 0) decision = 'REFER'; why.push(Math.round(unexplainedShare * 100) + '% of inflows are unclassified (OTHER_CREDIT) — income cannot be verified'); }
     if (structuring.length) { if (decision !== 'DECLINE') decision = 'REFER'; why.push('Cash deposits structured just below ₹50,000 reporting threshold'); }
     if (circular.length) { if (decision.indexOf('APPROVE') === 0) decision = 'REFER'; why.push('Circular fund movement with the same counterparty within 3 days'); }
     if (bounced) { if (decision === 'APPROVE') decision = 'APPROVE WITH CONDITIONS'; why.push('EMI bounce in the period — condition: NACH mandate on the salary account'); }
@@ -1025,7 +1047,7 @@ class Component extends DCLogic {
     if (penalties.length) why.push(penalties.length + ' penalty fee(s) on the credit card');
     if (!why.length) why.push('Band "' + band + '" maps to ' + decision + ' under the default policy');
     return {
-      months, spanDays, historyOk, minMonths: MIN_MONTHS, comps, total, band, decision, why, incomeByCat, income, avgInc, cv, growth, shareTop, incomeCats, loanList, monthlyEmi, foir, bounceRate, ontimeRate, bounced, presented,
+      months, spanDays, historyOk, minMonths: MIN_MONTHS, balRows, balCoverage, unexplainedShare, comps, total, band, decision, why, incomeByCat, income, avgInc, cv, growth, shareTop, incomeCats, loanList, monthlyEmi, foir, bounceRate, ontimeRate, bounced, presented,
       avgEod, minEod, negDays, eodDays: eod.length, bounceCharges, penalties, chargeAmt, integrity, circular, overnight, structuring, exp, essM, discM, fixM, discShare, fixedShare, expTrend, savingsRate, totExp
     };
   }
@@ -1291,7 +1313,7 @@ class Component extends DCLogic {
       cls: 'IN SIMPLE WORDS  Like sorting receipts into labelled envelopes (Groceries, Rent, Salary, EMI…). Three helpers sort, one after another.\n1 RULE  The rule book: your own rules, fixed rules (salary, EMI with loan no., refund, bounce, own transfer, card bill), narration keywords (RENT, TUITION, SWIGGY…), payments to a person = P2P. Very sure: 84–97%.\n2 LLM  Leftovers (low confidence, OTHER, lexical guesses) go to Claude when an API key is configured (CLI); the answer is checked against the taxonomy. Without a key the rule guess stays (66–78%, or OTHER at 35%).\n3 MANUAL  Anything under the threshold goes to the Review queue; a person decides → 100%.\nEVERY ROW  Gets Level 1 (CREDIT / DEBIT), Level 2 category, a confidence % and the method that sorted it.',
       review: 'WHO  A person, in the Review queue.\nDOES  Fix the counterparty or category, or confirm as is. Each fix = MANUAL, 100% confidence; the score re-runs instantly.\nDONE  When no transaction is below the threshold.',
       score: 'INCOME 25%  Regularity, sources, growth, level (P2P, refunds, loans, own transfers excluded).\nDEBT 20%  EMIs per loan, FOIR, bounce rate, on-time rate.\nLIQUIDITY 15%  Avg / min end-of-day balance, negative days.\nBANKING 10%  Bounces, charges, penalties, overdraft.\nFRAUD 15%  Balance arithmetic, circular, overnight, structuring.\nEXPENSE 15%  Essential vs discretionary, fixed vs variable, trend, savings.\nTOTAL  Weighted sum × 10 → 0–1000.',
-      decision: 'BAND  800+ Excellent · 700 Good → APPROVE · 600 Fair → WITH CONDITIONS · 500 Below Avg → REFER · <500 Poor → DECLINE.\nOVERRIDES  FOIR > 65% → DECLINE · under 3 months of history, tampering, structuring, circular flows → REFER · EMI bounce turns APPROVE into WITH CONDITIONS.\nPROVISIONAL  Until the review queue is clear.',
+      decision: 'BAND  800+ Excellent · 700 Good → APPROVE · 600 Fair → WITH CONDITIONS · 500 Below Avg → REFER · <500 Poor → DECLINE.\nOVERRIDES  FOIR > 65% → DECLINE · balances unreadable, under 3 months of history, tampering, structuring, circular flows → REFER · >30% of inflows unclassified → no APPROVE · EMI bounce turns APPROVE into WITH CONDITIONS.\nPROVISIONAL  Until the review queue is clear.',
       text: 'Each page is converted to plain text with three parts:\n1  HEADER  "Key: Value" lines — Account Holder, Account Number, Account Type, Currency, Statement Period, Opening Balance. Continuation pages may have none.\n2  TABLE  | Date | Value Date | Narration | Debit | Credit | Balance | — one row per transaction, dates DD/MM/YYYY, amounts like 1,42,500.00.\n3  FOOTER  "Page X of Y", used for the order check.\nPDF text without pipes is read as: date  [value date]  narration  amount  balance.'
     };
   }
@@ -1382,11 +1404,11 @@ class Component extends DCLogic {
         provisional: T.some((t) => t.flagged), pending_review_items: T.filter((t) => t.flagged).length,
         components: R.comps.map((c) => ({ component: c.name, weight_pct: Math.round(c.w * 100), score_0_100: Math.round(c.s * 10) / 10, points: Math.round(c.s * c.w * 10) })),
         metrics: {
-          income_stability: { avg_monthly_income: r2(R.avgInc), monthly_income: R.months.map((m, i) => ({ month: m, total: r2(R.income[i]) })), income_by_category: R.incomeByCat.map((c) => ({ category: c.cat, by_month: c.vals.map((v, i) => ({ month: R.months[i], amount: r2(v) })) })), regularity_cv_pct: pct(R.cv), source_count: R.incomeCats.length, primary_source_share_pct: pct(R.shareTop), growth_first_to_last_pct: pct(R.growth) },
+          income_stability: { avg_monthly_income: r2(R.avgInc), unclassified_inflow_share_pct: pct(R.unexplainedShare), monthly_income: R.months.map((m, i) => ({ month: m, total: r2(R.income[i]) })), income_by_category: R.incomeByCat.map((c) => ({ category: c.cat, by_month: c.vals.map((v, i) => ({ month: R.months[i], amount: r2(v) })) })), regularity_cv_pct: pct(R.cv), source_count: R.incomeCats.length, primary_source_share_pct: pct(R.shareTop), growth_first_to_last_pct: pct(R.growth) },
           debt_service: { emi_obligations: R.loanList.map((l) => ({ loan_account: l.loan, lender: l.lender, monthly_emi: r2(l.monthly), presented: l.presented, bounced: l.bounced })), monthly_emi_total: r2(R.monthlyEmi), foir_pct: pct(R.foir), emi_bounce_rate_pct: pct(R.bounceRate), on_time_payment_rate_pct: pct(R.ontimeRate) },
           liquidity: { avg_eod_balance: r2(R.avgEod), min_eod_balance: r2(R.minEod), negative_balance_days: R.negDays, days_observed: R.eodDays },
           banking_behaviour: { bounces: R.bounced, bounce_charges: R.bounceCharges.map((t) => ({ date: t.date, amount: r2(t.amount), narration: t.narr })), penalty_fees: R.penalties.map((t) => ({ date: t.date, amount: r2(t.amount), narration: t.narr })), total_fees_and_charges: r2(R.chargeAmt), overdraft_days: R.negDays },
-          fraud_indicators: { balance_arithmetic_breaks: R.integrity.length, circular_transactions: R.circular.map((x) => ({ counterparty: x.a.cp, in: { date: x.a.date, amount: r2(x.a.amount) }, out: { date: x.b.date, amount: r2(x.b.amount) } })), overnight_pass_through: R.overnight.map((x) => ({ in: { date: x.a.date, amount: r2(x.a.amount) }, out: { date: x.b.date, amount: r2(x.b.amount) } })), structuring: R.structuring.map((x) => ({ cash_deposits: x.count, total: r2(x.total), from: x.from, to: x.to })) },
+          fraud_indicators: { balance_arithmetic_breaks: R.integrity.length, rows_with_printed_balance_pct: pct(R.balCoverage), circular_transactions: R.circular.map((x) => ({ counterparty: x.a.cp, in: { date: x.a.date, amount: r2(x.a.amount) }, out: { date: x.b.date, amount: r2(x.b.amount) } })), overnight_pass_through: R.overnight.map((x) => ({ in: { date: x.a.date, amount: r2(x.a.amount) }, out: { date: x.b.date, amount: r2(x.b.amount) } })), structuring: R.structuring.map((x) => ({ cash_deposits: x.count, total: r2(x.total), from: x.from, to: x.to })) },
           expense_management: { monthly_spend: R.months.map((m, i) => ({ month: m, total: r2(R.exp[i]), essential: r2(R.essM[i]), discretionary: r2(R.discM[i]), fixed: r2(R.fixM[i]) })), essential_share_pct: pct(1 - R.discShare), discretionary_share_pct: pct(R.discShare), fixed_share_pct: pct(R.fixedShare), variable_share_pct: pct(1 - R.fixedShare), spend_trend_first_to_last_pct: pct(R.expTrend), savings_rate_after_emi_pct: pct(R.savingsRate) }
         }
       } : null
@@ -1408,7 +1430,7 @@ class Component extends DCLogic {
       ['Structure', 'Account details present', 'Account number, bank, holder and opening balance for every account.', 'Warning plus a form to fill in the missing details.'],
       ['Structure', 'Transactions inside the stated statement period', 'Every row date falls within the printed “Statement Period”.', 'Warning: possible merged or edited file.'],
       ['Structure', 'Statement covers the full stated period', 'Data starts / ends within 10 days of the stated period.', 'Warning: missing weeks can hide income or EMIs.'],
-      ['Integrity', 'Running balance arithmetic (every row)', 'Previous balance ± amount must equal the printed balance on every row.', 'FAILED; decision forced to REFER (possible tampering).'],
+      ['Integrity', 'Running balance arithmetic (every row)', 'Previous balance ± amount must equal the printed balance on every row; the balance must be readable on 80%+ of rows.', 'FAILED; decision forced to REFER (possible tampering, or unverified extraction).'],
       ['Integrity', 'Opening + transactions = closing balance', 'Per account, opening balance plus all movements must equal the closing balance.', 'FAILED; points to deleted rows or missing pages.'],
       ['Integrity', 'Duplicate transactions (overlapping statements)', 'Identical rows (account, date, narration, amount, balance) appearing in two files.', 'Duplicates removed before scoring; warning shown.'],
       ['Integrity', 'Valid dates', 'No dates before 2000 or in the future.', 'Bad rows dropped (usually OCR misreads); warning shown.'],
@@ -1467,7 +1489,9 @@ class Component extends DCLogic {
     add('Structure', 'Statement covers the full stated period', !hasPeriod ? 'na' : (cov.length ? 'warn' : 'pass'), !hasPeriod ? 'No statement period printed' : (cov.length ? cov.join(' · ') : 'Data spans the stated period'), 'Missing start or end weeks hide income or EMIs.');
     // INTEGRITY
     const integ = R ? R.integrity.length : 0;
-    add('Integrity', 'Running balance arithmetic (every row)', integ ? 'fail' : (s.accounts.every((a) => a.opening !== undefined && a.opening !== null) ? 'pass' : 'warn'), integ ? integ + ' row(s) where previous balance ± amount ≠ printed balance' : (s.accounts.every((a) => a.opening !== undefined && a.opening !== null) ? 'All ' + T.length + ' rows reconcile' : 'Checked from the 2nd row (opening balance missing for some accounts)'), 'The strongest tamper signal: edited amounts break the arithmetic.');
+    const balMissing = T.filter((t) => t.bal === null || t.bal === undefined).length;
+    if (T.length && balMissing / T.length > 0.2) add('Integrity', 'Running balance arithmetic (every row)', 'fail', 'Balance column read on only ' + (T.length - balMissing) + ' of ' + T.length + ' rows — arithmetic cannot be checked, so the extraction is unverified', 'The strongest tamper signal: edited amounts break the arithmetic.');
+    else add('Integrity', 'Running balance arithmetic (every row)', integ ? 'fail' : (s.accounts.every((a) => a.opening !== undefined && a.opening !== null) ? 'pass' : 'warn'), integ ? integ + ' row(s) where previous balance ± amount ≠ printed balance' : (s.accounts.every((a) => a.opening !== undefined && a.opening !== null) ? 'All ' + T.length + ' rows reconcile' : 'Checked from the 2nd row (opening balance missing for some accounts)'), 'The strongest tamper signal: edited amounts break the arithmetic.');
     const rec = [];
     s.accounts.forEach((a) => {
       const rows = T.filter((t) => t.account === a.key); if (!rows.length || a.opening === undefined || a.opening === null) return;
@@ -1476,7 +1500,8 @@ class Component extends DCLogic {
       const closing = a.closing !== undefined && a.closing !== null ? a.closing : last;
       if (Math.abs(expect - closing) > 1) rec.push(a.key + ': opening ' + this.fmt(a.opening) + ' + net ' + this.fmt(net) + ' = ' + this.fmt(expect) + ', statement shows ' + this.fmt(closing));
     });
-    add('Integrity', 'Opening + transactions = closing balance', rec.length ? 'fail' : 'pass', rec.length ? rec.join(' · ') : 'Reconciles for every account with an opening balance', 'Catches missing pages or deleted rows.');
+    const anyOpening = s.accounts.some((a) => a.opening !== undefined && a.opening !== null);
+    add('Integrity', 'Opening + transactions = closing balance', rec.length ? 'fail' : (anyOpening ? 'pass' : 'na'), rec.length ? rec.join(' · ') : (anyOpening ? 'Reconciles for every account with an opening balance' : 'No opening balance read — cannot reconcile'), 'Catches missing pages or deleted rows.');
     add('Integrity', 'Duplicate transactions (overlapping statements)', cs.dups ? 'warn' : 'pass', cs.dups ? cs.dups + ' duplicate row(s) removed before scoring' : 'No duplicates across files', 'Overlapping uploads would double count income.');
     add('Integrity', 'Valid dates', cs.badDates ? 'warn' : 'pass', cs.badDates ? cs.badDates + ' row(s) with impossible dates dropped' : 'All dates valid and not in the future', 'OCR can misread years; future dates indicate errors.');
     add('Integrity', 'Valid amounts', cs.badAmt || cs.both ? 'warn' : 'pass', (cs.badAmt ? cs.badAmt + ' row(s) without an amount dropped. ' : '') + (cs.both ? cs.both + ' row(s) with both debit and credit' : (cs.badAmt ? '' : 'Every row has exactly one of debit or credit')), 'A row must move money in one direction.');

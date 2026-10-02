@@ -1,6 +1,6 @@
 {
   "schema": "ledgerlens.bsa.v1",
-  "generated_at": "2026-10-02T07:56:37.341Z",
+  "generated_at": "2026-10-02T08:05:39.347Z",
   "run": {
     "id": 1,
     "source": "01_single_month_digital.pdf",
@@ -168,8 +168,8 @@
         "check": "Running balance arithmetic (every row)",
         "status": "PASS",
         "result": "All 32 rows reconcile",
-        "rule": "Previous balance ± amount must equal the printed balance on every row.",
-        "on_fail": "FAILED; decision forced to REFER (possible tampering)."
+        "rule": "Previous balance ± amount must equal the printed balance on every row; the balance must be readable on 80%+ of rows.",
+        "on_fail": "FAILED; decision forced to REFER (possible tampering, or unverified extraction)."
       },
       {
         "id": 15,
@@ -1459,6 +1459,7 @@
     "metrics": {
       "income_stability": {
         "avg_monthly_income": 109212,
+        "unclassified_inflow_share_pct": 0,
         "monthly_income": [
           {
             "month": "2025-01",
@@ -1529,6 +1530,7 @@
       },
       "fraud_indicators": {
         "balance_arithmetic_breaks": 0,
+        "rows_with_printed_balance_pct": 100,
         "circular_transactions": [],
         "overnight_pass_through": [],
         "structuring": []

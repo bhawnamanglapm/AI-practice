@@ -17,4 +17,6 @@ Record the screen at 1440 px wide. Have the `test-statements/` folder open besid
 
 **Optional CLI clip (20 s).** Run `node cli.js ../test-statements/02_multi_month_multi_account.pdf -o out.json`. It produces the same numbers as the web app.
 
+**Optional DECLINE clip (20 s).** Upload `06_weak_applicant_3_months.pdf`. "Here is a weak applicant: three EMIs take 75% of salary, two EMIs bounced and the account was overdrawn for 15 days. FOIR above 65% is a hard limit, so the decision is DECLINE at 532."
+
 **Optional LLM clip (30 s).** With `ANTHROPIC_API_KEY` set, run `node cli.js ../test-statements/05_amount_drcr_column.csv -o out.json`. Point at the log: "LLM extract: Batch 1 … rows read by claude-opus-5-5" and "LLM classify: … labels accepted". Then run it with `--llm off` to show the rules alone stop on this layout. Also say: "A single-month statement is now referred, not approved: three months of history are needed to decide."

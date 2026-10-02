@@ -72,6 +72,44 @@ const tests = {
     assert.match(r.stderr, /fell back to rules|kept rule labels/);
     assert.strictEqual(risk(r.json).composite_score, 777);
   },
+  'weak applicant (3 months) → DECLINE on FOIR, with bounces and overdraft': () => {
+    const r = run([path.join(TS, '06_weak_applicant_3_months.pdf')]);
+    assert.strictEqual(r.code, 0, r.stderr);
+    const R = risk(r.json);
+    assert.strictEqual(R.decision, 'DECLINE');
+    assert.ok(R.composite_score < 600, 'score ' + R.composite_score);
+    assert.ok(R.metrics.debt_service.foir_pct > 65);
+    assert.strictEqual(R.metrics.banking_behaviour.bounces, 2);
+    assert.ok(R.metrics.liquidity.negative_balance_days > 0);
+    assert.strictEqual(R.period.sufficient_history, true);
+    assert.strictEqual(r.json.data_validation.summary.failed, 0);
+  },
+  'external: rows read without balances fail check 14 and force REFER': () => {
+    const r = run([path.join(TS, 'external', 'meridian-salary-account-feb-2026.pdf')]);
+    const c14 = r.json.data_validation.checks.find((c) => c.id === 14);
+    assert.strictEqual(c14.status, 'FAILED');
+    assert.strictEqual(r.json.data_validation.checks.find((c) => c.id === 15).status, 'N/A');
+    assert.strictEqual(risk(r.json).decision, 'REFER');
+    assert.ok(risk(r.json).decision_reasons.some((x) => /balance read on only/i.test(x)));
+  },
+  'external: a misread page is sent to the model in auto mode; clean pages are not': () => {
+    const bad = run([path.join(TS, 'external', 'meridian-salary-account-feb-2026.pdf')], MOCK);
+    assert.match(bad.stderr, /LLM extract: Batch 1/);
+    const good = run([path.join(TS, 'external', 'northstar-business-current-mar-2026.pdf')], MOCK);
+    assert.doesNotMatch(good.stderr, /LLM extract: Batch/);
+  },
+  'external: unverifiable income blocks APPROVE': () => {
+    const r = run([path.join(TS, 'external', 'northstar-business-current-mar-2026.pdf')]);
+    assert.notStrictEqual(risk(r.json).decision, 'APPROVE');
+    assert.ok(risk(r.json).decision_reasons.some((x) => /income cannot be verified/.test(x)));
+  },
+  'external: amounts and balances match the answer key where the layout is readable': () => {
+    const { evaluate } = require('./eval-external');
+    ['astra-premier-checking-jan-2026', 'northstar-business-current-mar-2026'].forEach((n) => {
+      const e = evaluate(n);
+      ['date', 'debit', 'credit', 'balance'].forEach((k) => assert.strictEqual(e.ok[k], e.n, n + ' ' + k + ' ' + e.ok[k] + '/' + e.n));
+    });
+  },
   'jumbled pages still stop the pipeline': () => {
     const r = run(['--sample', 'jumbled']);
     assert.strictEqual(r.code, 3);

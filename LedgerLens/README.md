@@ -39,7 +39,8 @@ node cli.js statement.pdf --llm all -o out.json                         # model 
 node cli.js statement.pdf --llm off                                     # rules only
 node cli.js statement.pdf --model claude-sonnet-5-5                     # another model (default claude-opus-5-5)
 
-npm test                              # 10 tests; LLM path uses a stand-in model, no key needed
+npm test                              # 15 tests; LLM path uses a stand-in model, no key needed
+node test/eval-external.js            # field accuracy on the external statements vs their answer keys
 ```
 Exit codes: `0` success · `2` password needed or wrong · `3` pipeline stopped by validation (e.g. jumbled pages, no rows found).
 
@@ -83,7 +84,7 @@ flowchart LR
 2. **The model is never trusted blindly.** Extraction output re-enters the rule pipeline and must pass the balance-arithmetic checks; classification output must name a taxonomy code with the right Level 1. Schema-validated JSON (structured outputs), effort `low` (a well-specified extraction task), server-side refusal fallback on. Any API error falls back to rules for that batch/chunk — the run never dies because of the model.
 3. **Confidence + method on every field that matters.** Counterparty and category both carry a confidence; credit officers can see *how* each label was produced.
 4. **Integrity over coverage.** Balance arithmetic is checked on every row and opening + movements = closing per account. A broken balance **forces REFER** regardless of score — an OCR misread or an edited PDF must never silently produce an APPROVE.
-5. **Decision = band + hard overrides.** The band sets the base decision; policy rules override it (FOIR > 65% → DECLINE; **under 3 months of history**, tampering, structuring, circular flows → REFER; any EMI bounce → at most APPROVE WITH CONDITIONS). Reasons are always listed.
+5. **Decision = band + hard overrides.** The band sets the base decision; policy rules override it (FOIR > 65% → DECLINE; **under 3 months of history**, unreadable balances, tampering, structuring, circular flows → REFER; > 30% of inflows unclassified → no APPROVE; any EMI bounce → at most APPROVE WITH CONDITIONS). Reasons are always listed.
 6. **Not every credit is income.** Income = SALARY, BUSINESS_INCOME, INTEREST, RENTAL_INCOME only. P2P receipts, refunds, reversals, loan disbursals, own-account transfers, card payments and cash deposits are excluded.
 7. **Review effort is a product constraint.** A queue nobody can finish is useless, hence materiality triage, grouping and learnable rules.
 8. **Privacy by design.** Web app processes everything on the user's device; nothing is uploaded; passwords are never stored or logged. The CLI sends statement text to the Anthropic API only when a key is configured; `--llm off` keeps it fully local.
@@ -125,8 +126,8 @@ Composite = Σ(score × weight) × 10. Bands: **Excellent ≥ 800 · Good 700–
 | 11 | Structure | Account details present | Warning + fill-in form |
 | 12 | Structure | Rows inside the stated statement period | Warning |
 | 13 | Structure | Data covers the full stated period | Warning |
-| 14 | Integrity | Running balance arithmetic on every row | **Fail → REFER** |
-| 15 | Integrity | Opening + transactions = closing | **Fail** |
+| 14 | Integrity | Running balance arithmetic on every row; balance readable on ≥ 80% of rows | **Fail → REFER** |
+| 15 | Integrity | Opening + transactions = closing (N/A without an opening balance) | **Fail** |
 | 16 | Integrity | Duplicate transactions across files | Removed |
 | 17 | Integrity | Valid dates (2000 … today) | Dropped |
 | 18 | Integrity | Valid amounts (exactly one of debit/credit) | Dropped / flagged |
@@ -141,7 +142,9 @@ All 22 results are included in the JSON output (`data_validation`).
 
 ## 6. Test data & results
 
-All test statements are **synthetic** (generated with ReportLab / Pillow by the scripts in `tools/`) using realistic Indian narration formats; no real customer data is used.
+Two sets, **all synthetic — no real customer data is used anywhere**:
+- **Our own** statements, generated with ReportLab / Pillow by the scripts in `tools/` (realistic Indian narration formats).
+- **External** statements in `test-statements/external/`: three PDFs from an independent open-source project (MIT), rendered by headless Chrome in layouts LedgerLens was *not* built around, each with an answer-key CSV. They test whether the parser generalises beyond our own generator. A bank-published specimen could not be downloaded from this build environment (network policy); see *Known limitations*.
 
 | File | What it tests | Pages / accounts / txns | Result | Review items | Validation (pass / warn / fail / n.a.) |
 |---|---|---|---|---|---|
@@ -151,7 +154,24 @@ All test statements are **synthetic** (generated with ReportLab / Pillow by the 
 | `03b_scanned_statement.pdf` | Image-only (scanned) PDF → render → OCR | 2 / 1 / 32 | **841 · Excellent · REFER** (CLI: one OCR digit error breaks the balance chain; plus 1 month of history) | 0 | 18 / 1 / 2 / 1 |
 | `04_csv_export_jan2025.csv` | Bank CSV export with header rows, quoted amounts | 1 / 1 / 32 | **901 · Excellent · REFER** (only 1 month of history) | 0 | 15 / 1 / 0 / 6 |
 | `05_amount_drcr_column.csv` | Kotak-style layout: one **Amount** column + **Dr/Cr** marker, Jan–Mar 2025 | 1 / 1 / 24 | Rules only: **stops** ("No transaction rows were recognised"). With the LLM step: batch read by the model, all balance checks pass (verified in `npm test` with a stand-in model) | — | — |
+| `06_weak_applicant_3_months.pdf` | **Weak applicant**, Jan–Mar 2025: salary ~₹52k, 3 EMIs = ₹38.2k (FOIR 75%), 2 EMI bounces + return charges, EMIs debited before salary → 15 overdraft days, P2P "hand loans", instant-loan disbursal, min-balance charges (`tools/make_weak_applicant.py`) | 3 / 1 / 48 | **532 · Below Average · DECLINE** (FOIR above 65% hard limit; EMI bounces) | 0 | 18 / 0 / 0 / 4 |
 | built-in `jumbled` sample | Pages 4 and 5 swapped | — | **Stops:** "Pages appear jumbled: position 4 carries Page 5 of 12" | — | — |
+
+### External statements — accuracy against the answer key (rules only)
+
+`node cli/test/eval-external.js` runs the CLI on each PDF and compares every row with the answer key:
+
+| Statement (external) | Rows | Date | Debit | Credit | Balance | Narration exact | Decision |
+|---|---|---|---|---|---|---|---|
+| `astra-premier-checking-jan-2026` — Deposit before Withdrawal, `CR` on the next line | 10/10 | 100% | 100% | 100% | 100% | 90% | 905 · REFER (1 month of history) |
+| `meridian-salary-account-feb-2026` — date on the **middle** line of each narration block | 20/20 | 100% | **0%** | 65% | **0%** | 0% | 609 · **REFER** — balances unreadable, income unverifiable, 2 months |
+| `northstar-business-current-mar-2026` — business account, client receipts as income | 24/24 | 100% | 100% | 100% | 100% | 75% | 782 · **REFER** — 86% of inflows unclassified |
+
+What the external set found, and what changed:
+- **A silent failure (fixed).** On Meridian the rules mis-aligned every row and read *no* balances, yet all 22 checks passed: the arithmetic checks had nothing to compare, and check 15 passed with no opening balance. Now check 14 **fails** when balances are read on < 80% of rows, check 15 is N/A without an opening balance, and the decision is forced to **REFER**. In `--llm auto` mode such a page is also re-read by the model: a batch goes to Claude when the rules read no rows, **or** their rows lack balances, **or** they break the balance chain. On our own test set this routes exactly the pages that need it (`03b` with its OCR digit error, `05`, Meridian) and nothing else.
+- **Approval on unverifiable income (fixed).** Northstar was APPROVED (782) although 86% of its inflows (client RTGS/NEFT receipts) were OTHER_CREDIT, so income and FOIR were meaningless. Now more than 30% unclassified inflows blocks APPROVE (→ REFER). Labelling these credits as BUSINESS_INCOME is the LLM step's job; we did not add keywords tuned to this file.
+- **`Cr`/`Dr` balance markers** wrapped onto the next line were glued into narrations (Astra 0% → 90% exact). Fixed generically.
+- **Not fixed:** the letter-spaced `S Y N T H E T I C  D E M O` watermark still leaks into some narrations; stripping it would be tuning to this sample. Amounts are unaffected.
 
 Sample outputs (transactions + credit risk summary + validation) are in `sample-output/*.output.json`, all produced by the CLI with the LLM step off (rules only). Schema: `ledgerlens.bsa.v1` — `run`, `accounts`, `data_validation`, `transactions[]`, `credit_risk_summary{composite_score, rating_band, decision, decision_reasons, components[], metrics{income_stability, debt_service, liquidity, banking_behaviour, fraud_indicators, expense_management}}`.
 
@@ -189,13 +209,14 @@ Sample outputs (transactions + credit risk summary + validation) are in `sample-
 
 ## 8. Known limitations
 
-1. **LLM step is CLI-only, and not yet measured.** The web app has no API key and runs rules-only. The Claude integration is covered by tests against a stand-in model (plumbing, validation of answers, fallback on errors), but there is no labelled set yet to measure the model's extraction or labelling accuracy versus the rules, nor its cost per statement.
-2. **Narration formats.** Built from public explainers and common patterns; banks vary by core system. Unknown formats fall to review and can be taught via counterparty rules (stored per browser).
-3. **OCR.** English only; quality drops on blurred, skewed or low-resolution scans. Integrity checks catch digit errors but cannot fix them.
-4. **Cheques** rarely print the counterparty; these stay at 55% confidence.
-5. **No external data:** no MCC codes for card merchants, no UPI-ID name lookup, IFSC resolves to bank (not branch), no bureau cross-check of EMIs.
-6. **Persistence:** rules, activity log and run history are kept in the browser's local storage only; no multi-user backend.
-7. **Scoring** is rules-based and uncalibrated (see Assumptions).
+1. **LLM step is CLI-only, and its accuracy is not yet measured.** The web app has no API key and runs rules-only. The Claude integration is covered by tests against a stand-in model (plumbing, validation of answers, fallback on errors). `cli/test/eval-external.js --llm all` will measure the model on the external answer keys once a key is set; this was not run for the submission.
+2. **No bank-issued statement in the test set.** Real customer statements are personal data, and the bank specimen PDFs found online could not be downloaded from the build environment (network policy). The external set is independent but synthetic. Next step: run `eval-external.js` on 2–3 bank-published specimens (or a consenting colleague's redacted statement) and add the results here.
+3. **Narration formats.** Built from public explainers and common patterns; banks vary by core system. Unknown formats fall to review and can be taught via counterparty rules (stored per browser).
+4. **OCR.** English only; quality drops on blurred, skewed or low-resolution scans. Integrity checks catch digit errors but cannot fix them.
+5. **Cheques** rarely print the counterparty; these stay at 55% confidence.
+6. **No external data:** no MCC codes for card merchants, no UPI-ID name lookup, IFSC resolves to bank (not branch), no bureau cross-check of EMIs.
+7. **Persistence:** rules, activity log and run history are kept in the browser's local storage only; no multi-user backend.
+8. **Scoring** is rules-based and uncalibrated (see Assumptions).
 
 ---
 
